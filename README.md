@@ -2,7 +2,7 @@
 
 MultiTool ist ein Minecraft-Plugin fuer Paper/Spigot-Server auf Basis der 1.21-API, das ein verzaubertes Holz-Regal in ein intelligentes Universalwerkzeug verwandelt. Das Item heisst `Multitool`, speichert mehrere Werkzeuge direkt in seinem eigenen Inventar und waehlt automatisch das passende Werkzeug oder die passende Waffe aus, je nachdem, worauf der Spieler schaut.
 
-Das Plugin ist fuer Spieler gedacht, die nicht staendig zwischen Spitzhacke, Axt, Harke, Schwert, Bogen, Angel oder anderen Werkzeugen wechseln wollen. Statt viele einzelne Items in der Hotbar mitzuschleppen, wird alles in einem zentralen Item gebuendelt. Das Multitool kann ausserdem um ein Totem of Undying und ein Buch mit Fluch der Bindung erweitert werden.
+Das Plugin ist fuer Spieler gedacht, die nicht staendig zwischen Spitzhacke, Axt, Hacke, Schwert, Bogen, Angel oder anderen Werkzeugen wechseln wollen. Statt viele einzelne Items in der Hotbar mitzuschleppen, wird alles in einem zentralen Item gebuendelt. Das Multitool kann ausserdem um ein Totem of Undying und ein Buch mit Fluch der Bindung erweitert werden.
 
 ## Was das Plugin macht
 
@@ -13,7 +13,7 @@ Beispiele:
 - Blick auf Stein oder Erze: Das Multitool verwendet die gespeicherte Spitzhacke.
 - Blick auf Holz oder Baumstamm: Das Multitool verwendet die gespeicherte Axt.
 - Blick auf Erde, Sand oder aehnliche Bloecke: Das Multitool verwendet die gespeicherte Schaufel.
-- Blick auf Laub, Pflanzen oder Farmland: Das Multitool verwendet die gespeicherte Harke.
+- Blick auf Laub, Pflanzen oder Farmland: Das Multitool verwendet die gespeicherte Hacke.
 - Nahkampf gegen feindliche Mobs: Das Multitool verwendet das gespeicherte Schwert.
 - Friedliche Tiere in der Naehe: Das Multitool verwendet den gespeicherten Speer.
 - Ziele in groesserer Entfernung: Das Multitool verwendet je nach Situation Bogen oder Speer.
@@ -41,7 +41,7 @@ Das Multitool wird shapeless im Plugin verarbeitet, erwartet aber die Zutaten im
 | Axt | Schaufel | Holzspeer |
 | --- | --- | --- |
 | Angel | Regal | Bogen |
-| Holzschwert | Spitzhacke | Harke |
+| Holzschwert | Spitzhacke | Hacke |
 
 Verwendete Zutaten:
 
@@ -90,7 +90,7 @@ Jedes Werkzeug besitzt ein eigenes Upgrade-Menue. Dort kann genau das passende W
 
 - Axt-Slot fuer Aexte
 - Spitzhacken-Slot fuer Spitzhacken
-- Harken-Slot fuer Harken
+- Hacken-Slot fuer Hacken
 - Schwert-Slot fuer Schwerter
 - Bogen-Slot fuer Boegen
 - Angel-Slot fuer Angeln
@@ -168,7 +168,7 @@ Die automatische Erkennung orientiert sich am anvisierten Ziel.
 - Holz, Stamme und aehnliche Holzbloecke: Axt
 - Stein, Erze und pickaxe-typische Bloecke: Spitzhacke
 - Erde, Sand, Schnee und shovel-typische Bloecke: Schaufel
-- Laub, Pflanzen, Farmland und hoe-typische Bloecke: Harke
+- Laub, Pflanzen, Farmland und hoe-typische Bloecke: Hacke
 - Wasser oder wasserbezogene Ziele: Angel
 
 ### Mob-Erkennung

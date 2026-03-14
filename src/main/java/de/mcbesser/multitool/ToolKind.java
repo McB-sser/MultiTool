@@ -10,7 +10,7 @@ public enum ToolKind {
     BOW("Bogen", Material.BOW),
     SWORD("Schwert", Material.WOODEN_SWORD),
     PICKAXE("Spitzhacke", Material.WOODEN_PICKAXE),
-    HOE("Harke", Material.WOODEN_HOE);
+    HOE("Hacke", Material.WOODEN_HOE);
 
     private final String displayName;
     private final Material defaultMaterial;
