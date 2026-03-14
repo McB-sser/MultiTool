@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -21,6 +22,7 @@ import org.bukkit.block.data.Waterlogged;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Squid;
@@ -63,6 +65,7 @@ public final class MultiToolManager {
     private final NamespacedKey storedBindingKey;
     private final NamespacedKey multitoolRecipeKey;
     private final Map<ToolKind, NamespacedKey> toolKeys = new EnumMap<>(ToolKind.class);
+    private final Set<Material> spearMaterials;
 
     public MultiToolManager(MultiToolPlugin plugin) {
         this.plugin = plugin;
@@ -72,6 +75,7 @@ public final class MultiToolManager {
         this.storedTotemKey = new NamespacedKey(plugin, "stored_totem");
         this.storedBindingKey = new NamespacedKey(plugin, "stored_binding");
         this.multitoolRecipeKey = new NamespacedKey(plugin, "multitool");
+        this.spearMaterials = resolveSpearMaterials();
         for (ToolKind toolKind : ToolKind.values()) {
             toolKeys.put(toolKind, new NamespacedKey(plugin, "tool_" + toolKind.name().toLowerCase()));
         }
@@ -82,7 +86,7 @@ public final class MultiToolManager {
         recipe.shape("ASP", "RLB", "KCH");
         recipe.setIngredient('A', Material.WOODEN_AXE);
         recipe.setIngredient('S', Material.WOODEN_SHOVEL);
-        recipe.setIngredient('P', Material.WOODEN_SPEAR);
+        recipe.setIngredient('P', new RecipeChoice.MaterialChoice(new ArrayList<>(spearMaterials)));
         recipe.setIngredient('R', Material.FISHING_ROD);
         recipe.setIngredient('L', new RecipeChoice.MaterialChoice(new ArrayList<>(SHELF_MATERIALS)));
         recipe.setIngredient('B', Material.BOW);
@@ -211,7 +215,7 @@ public final class MultiToolManager {
             case SWORD -> Tag.ITEMS_SWORDS.isTagged(item.getType());
             case BOW -> item.getType() == Material.BOW;
             case ROD -> item.getType() == Material.FISHING_ROD;
-            case SPEAR -> item.getType() == Material.WOODEN_SPEAR;
+            case SPEAR -> isSpear(item);
         };
     }
 
@@ -311,7 +315,7 @@ public final class MultiToolManager {
         return matrix.length >= 9
                 && matches(matrix[0], Material.WOODEN_AXE)
                 && matches(matrix[1], Material.WOODEN_SHOVEL)
-                && matches(matrix[2], Material.WOODEN_SPEAR)
+                && isSpear(matrix[2])
                 && matches(matrix[3], Material.FISHING_ROD)
                 && matrix[4] != null
                 && isShelfMaterial(matrix[4].getType())
@@ -473,20 +477,25 @@ public final class MultiToolManager {
     }
 
     private ToolKind determineTool(Player player, ItemStack multitool) {
+        Block block = player.getTargetBlockExact(6);
+        double blockDistance = block == null ? Double.MAX_VALUE : player.getEyeLocation().distance(block.getLocation().toCenterLocation());
+
         RayTraceResult entityTrace = player.getWorld().rayTraceEntities(
                 player.getEyeLocation(),
                 player.getEyeLocation().getDirection(),
-                24.0D
+                24.0D,
+                entity -> entity instanceof LivingEntity && entity != player
         );
         if (entityTrace != null && entityTrace.getHitEntity() != null) {
             double distance = player.getEyeLocation().distance(entityTrace.getHitEntity().getLocation());
-            ToolKind entityTool = determineEntityTool(entityTrace.getHitEntity(), distance);
-            if (entityTool != null && hasUsableTool(multitool, entityTool)) {
-                return entityTool;
+            if (distance <= blockDistance) {
+                ToolKind entityTool = determineEntityTool(entityTrace.getHitEntity(), distance);
+                if (entityTool != null && hasUsableTool(multitool, entityTool)) {
+                    return entityTool;
+                }
             }
         }
 
-        Block block = player.getTargetBlockExact(6);
         if (block != null) {
             ToolKind blockTool = determineBlockTool(block);
             if (blockTool != null && hasUsableTool(multitool, blockTool)) {
@@ -506,7 +515,7 @@ public final class MultiToolManager {
         if (entity instanceof Animals) {
             return distance > 10.0D ? ToolKind.BOW : ToolKind.SPEAR;
         }
-        return distance > 10.0D ? ToolKind.BOW : ToolKind.SWORD;
+        return null;
     }
 
     private ToolKind determineBlockTool(Block block) {
@@ -559,7 +568,38 @@ public final class MultiToolManager {
     }
 
     private Material getMenuMaterial(ToolKind toolKind) {
+        if (toolKind == ToolKind.SPEAR) {
+            if (spearMaterials.contains(Material.WOODEN_SPEAR)) {
+                return Material.WOODEN_SPEAR;
+            }
+            if (!spearMaterials.isEmpty()) {
+                return spearMaterials.iterator().next();
+            }
+        }
         return toolKind.getDefaultMaterial();
+    }
+
+    private boolean isSpear(ItemStack item) {
+        return item != null && spearMaterials.contains(item.getType());
+    }
+
+    private Set<Material> resolveSpearMaterials() {
+        Set<Material> materials = new HashSet<>();
+        addMaterialIfPresent(materials, "WOODEN_SPEAR");
+        addMaterialIfPresent(materials, "SPEAR");
+        addMaterialIfPresent(materials, "STONE_SPEAR");
+        addMaterialIfPresent(materials, "IRON_SPEAR");
+        addMaterialIfPresent(materials, "GOLDEN_SPEAR");
+        addMaterialIfPresent(materials, "DIAMOND_SPEAR");
+        addMaterialIfPresent(materials, "NETHERITE_SPEAR");
+        return materials;
+    }
+
+    private void addMaterialIfPresent(Set<Material> materials, String name) {
+        Material material = Material.matchMaterial(name);
+        if (material != null) {
+            materials.add(material);
+        }
     }
 
     private ItemStack getStoredItem(ItemStack multitool, NamespacedKey key) {
