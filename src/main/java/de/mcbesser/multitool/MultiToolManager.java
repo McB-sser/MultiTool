@@ -156,6 +156,7 @@ public final class MultiToolManager {
                 27,
                 Component.text("Multitool")
         );
+        fillWithBlockedSlots(inventory);
         inventory.setItem(13, createMenuDisplay(multitool));
         inventory.setItem(10, createToolButton(multitool, ToolKind.AXE));
         inventory.setItem(11, createToolButton(multitool, ToolKind.SHOVEL));
@@ -174,6 +175,7 @@ public final class MultiToolManager {
                 9,
                 Component.text("Multitool Upgrade")
         );
+        fillWithBlockedSlots(inventory);
         inventory.setItem(0, createBackButton());
         inventory.setItem(2, createTotemInfo());
         inventory.setItem(3, cloneOrNull(getStoredTotem(multitool)));
@@ -189,6 +191,7 @@ public final class MultiToolManager {
                 InventoryType.HOPPER,
                 Component.text(toolKind.getDisplayName() + " Upgrade")
         );
+        fillWithBlockedSlots(inventory);
         inventory.setItem(0, createBackButton());
         inventory.setItem(2, createUpgradeInfo(toolKind));
         inventory.setItem(4, cloneOrNull(getStoredTool(multitool, toolKind)));
@@ -436,6 +439,21 @@ public final class MultiToolManager {
                 Component.text("Rechts daneben Buch mit Fluch der Bindung"),
                 Component.text("Dann kann das Multitool nicht gedroppt oder abgelegt werden")
         ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private void fillWithBlockedSlots(Inventory inventory) {
+        ItemStack blocked = createBlockedPane();
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, blocked);
+        }
+    }
+
+    private ItemStack createBlockedPane() {
+        ItemStack item = new ItemStack(Material.BLACK_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(" "));
         item.setItemMeta(meta);
         return item;
     }
