@@ -102,6 +102,7 @@ public final class MultiToolManager {
         ItemMeta meta = item.getItemMeta();
         meta.displayName(MULTITOOL_NAME);
         meta.addEnchant(Enchantment.INFINITY, 1, true);
+        meta.lore(buildMultitoolLore(null, false, false));
         meta.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
         meta.getPersistentDataContainer().set(baseMaterialKey, PersistentDataType.STRING, baseMaterial.name());
         meta.getPersistentDataContainer().set(selectedToolKey, PersistentDataType.STRING, "");
@@ -351,7 +352,7 @@ public final class MultiToolManager {
         multitool.setType(display.getType());
         ItemMeta displayMeta = display.getItemMeta();
         displayMeta.displayName(MULTITOOL_NAME);
-        displayMeta.lore(List.of(Component.text(desiredTool == null ? "Nur Regal aktiv" : "Aktiv: " + desiredTool.getDisplayName())));
+        displayMeta.lore(buildMultitoolLore(desiredTool, hasStoredTotem(multitool), hasBindingUpgrade(multitool)));
         displayMeta.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
         displayMeta.getPersistentDataContainer().set(baseMaterialKey, PersistentDataType.STRING, base.name());
         displayMeta.getPersistentDataContainer().set(selectedToolKey, PersistentDataType.STRING, desiredTool == null ? "" : desiredTool.name());
@@ -456,6 +457,18 @@ public final class MultiToolManager {
         meta.displayName(Component.text(" "));
         item.setItemMeta(meta);
         return item;
+    }
+
+    private List<Component> buildMultitoolLore(ToolKind activeTool, boolean hasTotem, boolean hasBinding) {
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text(activeTool == null ? "Aktiv: Regal" : "Aktiv: " + activeTool.getDisplayName()));
+        lore.add(Component.text("Wechselt automatisch zum passenden Werkzeug."));
+        lore.add(Component.text("Ducken + Rechtsklick oeffnet das Menue."));
+        lore.add(Component.text("Werkzeuge koennen intern gespeichert werden."));
+        lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert."));
+        lore.add(Component.text("Totem: " + (hasTotem ? "gespeichert" : "nicht gespeichert")));
+        lore.add(Component.text("Bindung: " + (hasBinding ? "aktiv" : "nicht aktiv")));
+        return lore;
     }
 
     private ToolKind determineTool(Player player, ItemStack multitool) {
