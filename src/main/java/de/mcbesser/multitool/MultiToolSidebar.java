@@ -20,7 +20,6 @@ public final class MultiToolSidebar {
     private static final String OBJECTIVE_NAME = "multitool";
 
     private final MultiToolManager manager;
-    private final Map<UUID, Scoreboard> previousBoards = new HashMap<>();
     private final Map<UUID, Scoreboard> activeBoards = new HashMap<>();
 
     public MultiToolSidebar(MultiToolManager manager) {
@@ -67,20 +66,19 @@ public final class MultiToolSidebar {
         if (active == null) {
             return;
         }
-        Scoreboard previous = previousBoards.remove(uuid);
-        player.setScoreboard(previous != null ? previous : Bukkit.getScoreboardManager().getMainScoreboard());
+        if (player.getScoreboard() == active) {
+            player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+        }
     }
 
     public void clearAll() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             clear(player);
         }
-        previousBoards.clear();
         activeBoards.clear();
     }
 
     private Scoreboard createBoard(Player player) {
-        previousBoards.putIfAbsent(player.getUniqueId(), player.getScoreboard());
         return Bukkit.getScoreboardManager().getNewScoreboard();
     }
 
