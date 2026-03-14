@@ -38,6 +38,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.BlockIterator;
 import org.bukkit.util.io.BukkitObjectInputStream;
 import org.bukkit.util.io.BukkitObjectOutputStream;
 
@@ -92,7 +93,7 @@ public final class MultiToolManager {
         recipe.shape("ASP", "RLB", "KCH");
         recipe.setIngredient('A', Material.WOODEN_AXE);
         recipe.setIngredient('S', Material.WOODEN_SHOVEL);
-        recipe.setIngredient('P', new RecipeChoice.MaterialChoice(new ArrayList<>(spearMaterials)));
+        recipe.setIngredient('P', Material.WOODEN_SPEAR);
         recipe.setIngredient('R', Material.FISHING_ROD);
         recipe.setIngredient('L', new RecipeChoice.MaterialChoice(new ArrayList<>(SHELF_MATERIALS)));
         recipe.setIngredient('B', Material.BOW);
@@ -385,7 +386,7 @@ public final class MultiToolManager {
         return matrix.length >= 9
                 && matches(matrix[0], Material.WOODEN_AXE)
                 && matches(matrix[1], Material.WOODEN_SHOVEL)
-                && isSpear(matrix[2])
+                && matches(matrix[2], Material.WOODEN_SPEAR)
                 && matches(matrix[3], Material.FISHING_ROD)
                 && matrix[4] != null
                 && isShelfMaterial(matrix[4].getType())
@@ -598,7 +599,7 @@ public final class MultiToolManager {
     }
 
     private ToolKind determineTool(Player player, ItemStack multitool) {
-        Block block = player.getTargetBlockExact(6);
+        Block block = getRelevantTargetBlock(player);
         double blockDistance = block == null ? Double.MAX_VALUE : player.getEyeLocation().distance(block.getLocation().toCenterLocation());
 
         RayTraceResult entityTrace = player.getWorld().rayTraceEntities(
@@ -618,7 +619,7 @@ public final class MultiToolManager {
         }
 
         if (block != null) {
-            ToolKind blockTool = determineBlockTool(block);
+            ToolKind blockTool = determineBlockTool(block, isPlayerInWater(player));
             if (blockTool != null && hasUsableTool(multitool, blockTool)) {
                 return blockTool;
             }
@@ -639,12 +640,12 @@ public final class MultiToolManager {
         return getPreferredTool(multitool, distance > 10.0D ? PreferenceTarget.UNKNOWN_FAR : PreferenceTarget.UNKNOWN_NEAR);
     }
 
-    private ToolKind determineBlockTool(Block block) {
+    private ToolKind determineBlockTool(Block block, boolean playerInWater) {
         Material type = block.getType();
-        if (type == Material.WATER || block.getRelative(BlockFace.UP).getType() == Material.WATER) {
+        if (!playerInWater && (type == Material.WATER || block.getRelative(BlockFace.UP).getType() == Material.WATER)) {
             return ToolKind.ROD;
         }
-        if (block.getBlockData() instanceof Waterlogged waterlogged && waterlogged.isWaterlogged()) {
+        if (!playerInWater && block.getBlockData() instanceof Waterlogged waterlogged && waterlogged.isWaterlogged()) {
             return ToolKind.ROD;
         }
         if (Tag.LEAVES.isTagged(type) || HOE_PREFERRED.contains(type) || Tag.MINEABLE_HOE.isTagged(type)) {
@@ -663,6 +664,39 @@ public final class MultiToolManager {
             return ToolKind.SHOVEL;
         }
         return null;
+    }
+
+    private Block getRelevantTargetBlock(Player player) {
+        Block block = player.getTargetBlockExact(6);
+        if (block == null) {
+            return null;
+        }
+        if (!isWaterBlock(block.getType()) || !isPlayerInWater(player)) {
+            return block;
+        }
+
+        Block replacement = findFirstNonWaterBlock(player);
+        return replacement != null ? replacement : block;
+    }
+
+    private Block findFirstNonWaterBlock(Player player) {
+        BlockIterator iterator = new BlockIterator(player, 6);
+        while (iterator.hasNext()) {
+            Block next = iterator.next();
+            if (!isWaterBlock(next.getType())) {
+                return next;
+            }
+        }
+        return null;
+    }
+
+    private boolean isPlayerInWater(Player player) {
+        return isWaterBlock(player.getEyeLocation().getBlock().getType())
+                || isWaterBlock(player.getLocation().getBlock().getType());
+    }
+
+    private boolean isWaterBlock(Material material) {
+        return material == Material.WATER;
     }
 
     private boolean hasUsableTool(ItemStack multitool, ToolKind toolKind) {
