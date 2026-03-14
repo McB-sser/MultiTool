@@ -14,6 +14,7 @@ import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
+import org.bukkit.Sound;
 import org.bukkit.Tag;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.block.Block;
@@ -56,6 +57,15 @@ public final class MultiToolManager {
             Material.SWEET_BERRY_BUSH, Material.NETHER_WART, Material.WHEAT, Material.CARROTS,
             Material.POTATOES, Material.BEETROOTS, Material.MELON_STEM, Material.ATTACHED_MELON_STEM,
             Material.PUMPKIN_STEM, Material.ATTACHED_PUMPKIN_STEM
+    );
+    private static final Set<Material> BLOCKED_REPAIR_BLOCKS = Set.of(
+            Material.IRON_BLOCK,
+            Material.GOLD_BLOCK,
+            Material.ANVIL,
+            Material.CHIPPED_ANVIL,
+            Material.DAMAGED_ANVIL,
+            Material.GRINDSTONE,
+            Material.SMITHING_TABLE
     );
 
     private final MultiToolPlugin plugin;
@@ -133,6 +143,10 @@ public final class MultiToolManager {
 
     public boolean isShelfMaterial(Material material) {
         return SHELF_MATERIALS.contains(material);
+    }
+
+    public boolean isBlockedRepairBlock(Material material) {
+        return BLOCKED_REPAIR_BLOCKS.contains(material);
     }
 
     public Material getBaseMaterial(ItemStack item) {
@@ -410,7 +424,7 @@ public final class MultiToolManager {
         Bukkit.getScheduler().runTask(plugin, () -> refreshHeldMultitool(player));
     }
 
-    public void syncDamageFromUse(ItemStack itemInHand, int damageAmount) {
+    public void syncDamageFromUse(Player player, ItemStack itemInHand, int damageAmount) {
         if (!isMultitool(itemInHand)) {
             return;
         }
@@ -426,6 +440,9 @@ public final class MultiToolManager {
         storedMeta.setDamage(updatedDamage);
         stored.setItemMeta((ItemMeta) storedMeta);
         setStoredTool(itemInHand, selected, stored);
+        if (remainingDurability(stored) == 1) {
+            player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 0.8F, 1.0F);
+        }
     }
 
     public boolean matchesMultitoolRecipe(ItemStack[] matrix) {

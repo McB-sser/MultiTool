@@ -75,6 +75,29 @@ public final class MultiToolListener implements Listener {
         manager.refreshHeldMultitool(player);
     }
 
+    @EventHandler(priority = EventPriority.LOWEST)
+    public void onRepairBlockInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        if (event.getClickedBlock() == null || !manager.isBlockedRepairBlock(event.getClickedBlock().getType())) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (!manager.isMultitool(item)) {
+            return;
+        }
+
+        event.setCancelled(true);
+        event.setUseItemInHand(Result.DENY);
+        event.setUseInteractedBlock(Result.DENY);
+        player.sendActionBar(net.kyori.adventure.text.Component.text(
+                "Multitool kann nicht direkt mit Repair/Salvage benutzt werden. Nimm das Werkzeug vorher heraus."
+        ));
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event) {
         if (!manager.isMultitool(event.getItemInHand())) {
@@ -178,7 +201,7 @@ public final class MultiToolListener implements Listener {
         if (!manager.isMultitool(event.getItem())) {
             return;
         }
-        manager.syncDamageFromUse(event.getItem(), event.getDamage());
+        manager.syncDamageFromUse(event.getPlayer(), event.getItem(), event.getDamage());
         manager.refreshHeldMultitool(event.getPlayer());
     }
 
