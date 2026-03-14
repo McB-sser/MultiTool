@@ -2,6 +2,7 @@ package de.mcbesser.multitool;
 
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
+import org.bukkit.event.Event.Result;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -49,14 +50,14 @@ public final class MultiToolListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.HIGHEST)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
         }
 
         Player player = event.getPlayer();
-        ItemStack item = event.getItem();
+        ItemStack item = player.getInventory().getItemInMainHand();
         if (!manager.isMultitool(item)) {
             return;
         }
@@ -65,6 +66,8 @@ public final class MultiToolListener implements Listener {
                 && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK);
         if (openMenu) {
             event.setCancelled(true);
+            event.setUseItemInHand(Result.DENY);
+            event.setUseInteractedBlock(Result.DENY);
             player.openInventory(manager.createMainMenu(player, item));
             return;
         }
