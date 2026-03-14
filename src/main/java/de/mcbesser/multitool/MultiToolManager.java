@@ -101,7 +101,7 @@ public final class MultiToolManager {
         ItemStack item = new ItemStack(baseMaterial);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(MULTITOOL_NAME);
-        meta.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
+        meta.addEnchant(Enchantment.INFINITY, 1, true);
         meta.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
         meta.getPersistentDataContainer().set(baseMaterialKey, PersistentDataType.STRING, baseMaterial.name());
         meta.getPersistentDataContainer().set(selectedToolKey, PersistentDataType.STRING, "");
@@ -363,7 +363,7 @@ public final class MultiToolManager {
         copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedTotemKey);
         copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedBindingKey);
         if (desiredTool == null && displayMeta.getEnchants().isEmpty()) {
-            displayMeta.addEnchant(Enchantment.LUCK_OF_THE_SEA, 1, true);
+            displayMeta.addEnchant(Enchantment.INFINITY, 1, true);
         }
         multitool.setItemMeta(displayMeta);
     }
