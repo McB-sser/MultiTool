@@ -8,6 +8,9 @@ public final class MultiToolPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         this.multiToolManager = new MultiToolManager(this);
+        if (!multiToolManager.hasNativeSpearMaterial()) {
+            getLogger().warning("Kein natives Spear-Material gefunden. Erwartet WOODEN_SPEAR oder SPEAR. Das Multitool-Rezept bleibt ohne Speer-Unterstuetzung deaktiviert.");
+        }
         getServer().getPluginManager().registerEvents(new MultiToolListener(multiToolManager), this);
     }
 

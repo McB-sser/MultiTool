@@ -26,7 +26,6 @@ import org.bukkit.entity.Squid;
 import org.bukkit.entity.WaterMob;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
-import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.Damageable;
@@ -39,7 +38,6 @@ import org.bukkit.util.io.BukkitObjectOutputStream;
 
 public final class MultiToolManager {
     private static final Component MULTITOOL_NAME = Component.text("Multitool");
-    private static final Component SPEAR_NAME = Component.text("Holzspeer");
     private static final Set<Material> SHELF_MATERIALS = Set.of(
             Material.OAK_FENCE_GATE, Material.SPRUCE_FENCE_GATE, Material.BIRCH_FENCE_GATE,
             Material.JUNGLE_FENCE_GATE, Material.ACACIA_FENCE_GATE, Material.DARK_OAK_FENCE_GATE,
@@ -58,19 +56,19 @@ public final class MultiToolManager {
     private final NamespacedKey markerKey;
     private final NamespacedKey baseMaterialKey;
     private final NamespacedKey selectedToolKey;
-    private final NamespacedKey spearMarkerKey;
     private final NamespacedKey storedTotemKey;
     private final NamespacedKey storedBindingKey;
     private final Map<ToolKind, NamespacedKey> toolKeys = new EnumMap<>(ToolKind.class);
+    private final Material spearMaterial;
 
     public MultiToolManager(MultiToolPlugin plugin) {
         this.plugin = plugin;
         this.markerKey = new NamespacedKey(plugin, "multitool");
         this.baseMaterialKey = new NamespacedKey(plugin, "base_material");
         this.selectedToolKey = new NamespacedKey(plugin, "selected_tool");
-        this.spearMarkerKey = new NamespacedKey(plugin, "wooden_spear");
         this.storedTotemKey = new NamespacedKey(plugin, "stored_totem");
         this.storedBindingKey = new NamespacedKey(plugin, "stored_binding");
+        this.spearMaterial = resolveSpearMaterial();
         for (ToolKind toolKind : ToolKind.values()) {
             toolKeys.put(toolKind, new NamespacedKey(plugin, "tool_" + toolKind.name().toLowerCase()));
         }
@@ -88,21 +86,12 @@ public final class MultiToolManager {
         return item;
     }
 
-    public ItemStack createWoodenSpear() {
-        ItemStack item = new ItemStack(Material.TRIDENT);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(SPEAR_NAME);
-        meta.addItemFlags(ItemFlag.HIDE_ATTRIBUTES);
-        meta.getPersistentDataContainer().set(spearMarkerKey, PersistentDataType.BYTE, (byte) 1);
-        item.setItemMeta(meta);
-        return item;
+    public boolean hasNativeSpearMaterial() {
+        return spearMaterial != null;
     }
 
-    public boolean isWoodenSpear(ItemStack item) {
-        return item != null
-                && item.getType() == Material.TRIDENT
-                && item.hasItemMeta()
-                && item.getItemMeta().getPersistentDataContainer().has(spearMarkerKey, PersistentDataType.BYTE);
+    public Material getSpearMaterial() {
+        return spearMaterial;
     }
 
     public boolean isMultitool(ItemStack item) {
@@ -203,7 +192,7 @@ public final class MultiToolManager {
             case SWORD -> Tag.ITEMS_SWORDS.isTagged(item.getType());
             case BOW -> item.getType() == Material.BOW;
             case ROD -> item.getType() == Material.FISHING_ROD;
-            case SPEAR -> item.getType() == Material.TRIDENT;
+            case SPEAR -> spearMaterial != null && item.getType() == spearMaterial;
         };
     }
 
@@ -302,7 +291,8 @@ public final class MultiToolManager {
         return matrix.length >= 9
                 && matches(matrix[0], Material.WOODEN_AXE)
                 && matches(matrix[1], Material.WOODEN_SHOVEL)
-                && isWoodenSpear(matrix[2])
+                && spearMaterial != null
+                && matches(matrix[2], spearMaterial)
                 && matches(matrix[3], Material.FISHING_ROD)
                 && matrix[4] != null
                 && isShelfMaterial(matrix[4].getType())
@@ -314,15 +304,6 @@ public final class MultiToolManager {
 
     public ItemStack createRecipeResult(ItemStack[] matrix) {
         return createMultitool(matrix[4].getType());
-    }
-
-    public boolean matchesSpearRecipe(ItemStack[] matrix) {
-        return matrix.length >= 9
-                && matrix[1] != null && matrix[1].getType() == Material.FLINT
-                && matrix[4] != null && matrix[4].getType() == Material.STICK
-                && matrix[7] != null && matrix[7].getType() == Material.STICK
-                && isEmpty(matrix[0]) && isEmpty(matrix[2]) && isEmpty(matrix[3])
-                && isEmpty(matrix[5]) && isEmpty(matrix[6]) && isEmpty(matrix[8]);
     }
 
     public ToolKind getSelectedTool(ItemStack multitool) {
@@ -393,7 +374,7 @@ public final class MultiToolManager {
 
     private ItemStack createToolButton(ItemStack multitool, ToolKind toolKind) {
         ItemStack stored = getStoredTool(multitool, toolKind);
-        ItemStack item = new ItemStack(stored == null ? toolKind.getDefaultMaterial() : stored.getType());
+        ItemStack item = new ItemStack(stored == null ? getMenuMaterial(toolKind) : stored.getType());
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(toolKind.getDisplayName()));
         meta.lore(List.of(
@@ -413,7 +394,7 @@ public final class MultiToolManager {
     }
 
     private ItemStack createUpgradeInfo(ToolKind toolKind) {
-        ItemStack item = new ItemStack(toolKind.getDefaultMaterial());
+        ItemStack item = new ItemStack(getMenuMaterial(toolKind));
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(toolKind.getDisplayName()));
         meta.lore(List.of(Component.text("Slot rechts: Werkzeug einsetzen"), Component.text("Oder wieder herausnehmen")));
@@ -524,12 +505,23 @@ public final class MultiToolManager {
         return item != null && item.getType() == type;
     }
 
-    private boolean isEmpty(ItemStack item) {
-        return item == null || item.getType().isAir();
-    }
-
     private ItemStack cloneOrNull(ItemStack item) {
         return item == null ? null : item.clone();
+    }
+
+    private Material getMenuMaterial(ToolKind toolKind) {
+        if (toolKind == ToolKind.SPEAR && spearMaterial != null) {
+            return spearMaterial;
+        }
+        return toolKind.getDefaultMaterial();
+    }
+
+    private Material resolveSpearMaterial() {
+        Material woodenSpear = Material.matchMaterial("WOODEN_SPEAR");
+        if (woodenSpear != null) {
+            return woodenSpear;
+        }
+        return Material.matchMaterial("SPEAR");
     }
 
     private ItemStack getStoredItem(ItemStack multitool, NamespacedKey key) {

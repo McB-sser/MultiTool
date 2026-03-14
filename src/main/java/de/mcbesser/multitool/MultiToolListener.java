@@ -37,17 +37,13 @@ public final class MultiToolListener implements Listener {
             event.getInventory().setResult(manager.createRecipeResult(matrix));
             return;
         }
-        if (manager.matchesSpearRecipe(matrix)) {
-            event.getInventory().setResult(manager.createWoodenSpear());
-            return;
-        }
         event.getInventory().setResult(null);
     }
 
     @EventHandler
     public void onCraft(CraftItemEvent event) {
         ItemStack[] matrix = event.getInventory().getMatrix();
-        if (manager.matchesMultitoolRecipe(matrix) || manager.matchesSpearRecipe(matrix)) {
+        if (manager.matchesMultitoolRecipe(matrix)) {
             event.getCurrentItem().setAmount(1);
         }
     }

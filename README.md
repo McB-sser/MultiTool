@@ -33,16 +33,6 @@ Wenn ein gespeichertes Werkzeug nur noch `1` Haltbarkeit uebrig hat, wird es aut
 
 ## Crafting
 
-### Rezept fuer den Holzspeer
-
-Der Holzspeer ist ein eigenes Custom-Item und wird aktuell mit folgendem Rezept hergestellt:
-
-- Oben Mitte: `Flint`
-- Mitte: `Stick`
-- Unten Mitte: `Stick`
-
-Das Ergebnis ist ein `Holzspeer`.
-
 ### Rezept fuer das Multitool
 
 Das Multitool wird shapeless im Plugin verarbeitet, erwartet aber die Zutaten im Raster wie im Bild:
@@ -56,7 +46,7 @@ Verwendete Zutaten:
 
 - `Wooden Axe`
 - `Wooden Shovel`
-- `Holzspeer`
+- nativer `Holzspeer`
 - `Fishing Rod`
 - ein Holz-Regal
 - `Bow`
@@ -69,12 +59,13 @@ Wichtiger Hinweis zum aktuellen Stand:
 - Das im Plugin verwendete "Regal" ist technisch ein Holz-`FENCE_GATE`, weil dieses Item je nach Holzsorte verschiedene Varianten besitzt.
 - Dadurch kann das Multitool die Farbe beziehungsweise Holzart des verwendeten Regals uebernehmen.
 - Unterstuetzt werden alle normalen Holzvarianten sowie Crimson und Warped.
+- Fuer den Speer wird kein Custom-Item erzeugt. Das Plugin erwartet ein natives Server-Item mit Materialname `WOODEN_SPEAR` oder `SPEAR`.
 
 ## Wie man das Multitool benutzt
 
 ### 1. Multitool herstellen
 
-Stelle zuerst einen Holzspeer her. Danach platziere alle benoetigten Gegenstaende im Crafting-Feld entsprechend dem Rezept. Das Ergebnis ist ein verzaubertes Regal mit dem Namen `Multitool`.
+Besorge zuerst einen nativen Holzspeer auf deinem Server. Danach platziere alle benoetigten Gegenstaende im Crafting-Feld entsprechend dem Rezept. Das Ergebnis ist ein verzaubertes Regal mit dem Namen `Multitool`.
 
 ### 2. Multitool in die Hand nehmen
 
