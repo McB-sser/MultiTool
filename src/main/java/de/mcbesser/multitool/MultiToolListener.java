@@ -1,5 +1,7 @@
 package de.mcbesser.multitool;
 
+import io.papermc.paper.event.player.PlayerPickBlockEvent;
+import io.papermc.paper.event.player.PlayerPickEntityEvent;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.event.Event.Result;
@@ -161,6 +163,16 @@ public final class MultiToolListener implements Listener {
         manager.refreshHeldMultitool(event.getPlayer());
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPickBlock(PlayerPickBlockEvent event) {
+        handleManualCycle(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPickEntity(PlayerPickEntityEvent event) {
+        handleManualCycle(event.getPlayer(), event);
+    }
+
     @EventHandler(ignoreCancelled = true)
     public void onItemDamage(PlayerItemDamageEvent event) {
         if (!manager.isMultitool(event.getItem())) {
@@ -306,6 +318,13 @@ public final class MultiToolListener implements Listener {
             case 22 -> PreferenceTarget.UNKNOWN_FAR;
             default -> null;
         };
+        if (rawSlot == 24) {
+            event.setCancelled(true);
+            manager.toggleManualMode(multitool);
+            manager.refreshHeldMultitool(player);
+            player.openInventory(manager.createSettingsMenu(player, multitool));
+            return;
+        }
         if (target == null) {
             if (rawSlot < event.getView().getTopInventory().getSize()) {
                 event.setCancelled(true);
@@ -326,6 +345,17 @@ public final class MultiToolListener implements Listener {
             }
         }
         return null;
+    }
+
+    private void handleManualCycle(Player player, org.bukkit.event.Cancellable event) {
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (!manager.isMultitool(item) || !manager.isManualMode(item)) {
+            return;
+        }
+        event.setCancelled(true);
+        manager.cycleManualTool(item, false);
+        player.getInventory().setItemInMainHand(item);
+        manager.refreshHeldMultitool(player);
     }
 
     private boolean cancelBoundInventoryMove(InventoryClickEvent event) {
