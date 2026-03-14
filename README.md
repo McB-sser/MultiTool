@@ -30,6 +30,7 @@ Wenn ein gespeichertes Werkzeug nur noch `1` Haltbarkeit uebrig hat, wird es aut
 - Ein gespeichertes Totem kann beim Tod automatisch ausgeloest werden.
 - Ein gespeichertes Buch mit Fluch der Bindung verhindert das Droppen oder Ablegen in Container.
 - Fast defekte Werkzeuge werden automatisch deaktiviert, bevor sie zerbrechen.
+- Ein Settings-Menue erlaubt die Bevorzugung bestimmter Werkzeuge fuer verschiedene Mob-Zieltypen.
 
 ## Crafting
 
@@ -81,6 +82,7 @@ Im Menue:
 - Rundherum liegen die verschiedenen Werkzeug-Slots.
 - Jeder Werkzeug-Slot fuehrt in ein eigenes Upgrade-Menue.
 - Ein Klick auf das mittlere Regal oeffnet das Upgrade-Menue fuer das Multitool selbst.
+- Ein weiterer Button oeffnet das Settings-Menue fuer die Auto-Auswahl.
 
 ### 4. Werkzeuge einsetzen oder entnehmen
 
@@ -131,6 +133,31 @@ Verhalten:
 - Das Multitool kann nicht mehr normal gedroppt werden.
 - Das Multitool kann nicht mehr in geoeffnete Container verschoben oder abgelegt werden.
 - Das Buch kann spaeter wieder aus dem Slot entfernt werden, um die Sperre aufzuheben.
+
+### 6. Settings fuer die Auto-Auswahl
+
+Im Settings-Menue kann festgelegt werden, welches Werkzeug bei bestimmten Zieltypen bevorzugt wird.
+
+Aktuell einstellbar:
+
+- feindliche Mobs in der Naehe
+- feindliche Mobs in der Ferne
+- friedliche Mobs in der Naehe
+- friedliche Mobs in der Ferne
+- Wasser-Mobs
+- unbekannte Ziele in der Naehe
+- unbekannte Ziele in der Ferne
+
+Bedienung:
+
+- Linksklick auf einen Setting-Eintrag: naechstes Werkzeug
+- Rechtsklick auf einen Setting-Eintrag: vorheriges Werkzeug
+
+Beispiele:
+
+- Friedliche Tiere nah: Speer, Schwert, Axt oder Bogen
+- Feindliche Mobs nah: Schwert, Axt, Speer oder Bogen
+- Feindliche Mobs fern: Bogen, Speer, Schwert oder Axt
 
 ## Automatische Werkzeugauswahl im Detail
 

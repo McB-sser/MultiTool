@@ -65,6 +65,7 @@ public final class MultiToolManager {
     private final NamespacedKey storedBindingKey;
     private final NamespacedKey multitoolRecipeKey;
     private final Map<ToolKind, NamespacedKey> toolKeys = new EnumMap<>(ToolKind.class);
+    private final Map<PreferenceTarget, NamespacedKey> preferenceKeys = new EnumMap<>(PreferenceTarget.class);
     private final Set<Material> spearMaterials;
 
     public MultiToolManager(MultiToolPlugin plugin) {
@@ -78,6 +79,9 @@ public final class MultiToolManager {
         this.spearMaterials = resolveSpearMaterials();
         for (ToolKind toolKind : ToolKind.values()) {
             toolKeys.put(toolKind, new NamespacedKey(plugin, "tool_" + toolKind.name().toLowerCase()));
+        }
+        for (PreferenceTarget target : PreferenceTarget.values()) {
+            preferenceKeys.put(target, new NamespacedKey(plugin, "pref_" + target.name().toLowerCase()));
         }
     }
 
@@ -169,8 +173,26 @@ public final class MultiToolManager {
         inventory.setItem(14, createToolButton(multitool, ToolKind.ROD));
         inventory.setItem(15, createToolButton(multitool, ToolKind.BOW));
         inventory.setItem(16, createToolButton(multitool, ToolKind.SWORD));
+        inventory.setItem(18, createSettingsButton(multitool));
         inventory.setItem(21, createToolButton(multitool, ToolKind.PICKAXE));
         inventory.setItem(22, createToolButton(multitool, ToolKind.HOE));
+        return inventory;
+    }
+
+    public Inventory createSettingsMenu(Player player, ItemStack multitool) {
+        Inventory inventory = Bukkit.createInventory(
+                new MenuHolder(MenuHolder.MenuType.SETTINGS, player.getUniqueId(), player.getInventory().getHeldItemSlot(), null),
+                27,
+                Component.text("Multitool Settings")
+        );
+        fillWithBlockedSlots(inventory);
+        inventory.setItem(0, createBackButton());
+        int[] slots = {10, 11, 12, 14, 15, 16, 22};
+        PreferenceTarget[] targets = PreferenceTarget.values();
+        for (int i = 0; i < targets.length && i < slots.length; i++) {
+            inventory.setItem(slots[i], createPreferenceButton(multitool, targets[i]));
+        }
+        inventory.setItem(13, createSettingsInfo());
         return inventory;
     }
 
@@ -266,6 +288,38 @@ public final class MultiToolManager {
     public boolean hasBindingUpgrade(ItemStack multitool) {
         ItemStack binding = getStoredBindingBook(multitool);
         return binding != null && !binding.getType().isAir();
+    }
+
+    public ToolKind getPreferredTool(ItemStack multitool, PreferenceTarget target) {
+        if (!isMultitool(multitool)) {
+            return target.getDefaultTool();
+        }
+        String raw = multitool.getItemMeta().getPersistentDataContainer().get(preferenceKeys.get(target), PersistentDataType.STRING);
+        if (raw == null || raw.isBlank()) {
+            return target.getDefaultTool();
+        }
+        try {
+            ToolKind toolKind = ToolKind.valueOf(raw);
+            return target.getAllowedTools().contains(toolKind) ? toolKind : target.getDefaultTool();
+        } catch (IllegalArgumentException ignored) {
+            return target.getDefaultTool();
+        }
+    }
+
+    public void cyclePreferredTool(ItemStack multitool, PreferenceTarget target, boolean reverse) {
+        if (!isMultitool(multitool)) {
+            return;
+        }
+        List<ToolKind> allowed = target.getAllowedTools();
+        ToolKind current = getPreferredTool(multitool, target);
+        int index = allowed.indexOf(current);
+        if (index < 0) {
+            index = 0;
+        }
+        int nextIndex = reverse ? (index - 1 + allowed.size()) % allowed.size() : (index + 1) % allowed.size();
+        ItemMeta meta = multitool.getItemMeta();
+        meta.getPersistentDataContainer().set(preferenceKeys.get(target), PersistentDataType.STRING, allowed.get(nextIndex).name());
+        multitool.setItemMeta(meta);
     }
 
     public boolean consumeStoredTotem(ItemStack multitool) {
@@ -369,6 +423,9 @@ public final class MultiToolManager {
                 displayMeta.getPersistentDataContainer().set(toolKeys.get(toolKind), PersistentDataType.STRING, encoded);
             }
         }
+        for (PreferenceTarget target : PreferenceTarget.values()) {
+            copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), preferenceKeys.get(target));
+        }
         copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedTotemKey);
         copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedBindingKey);
         if (desiredTool == null && displayMeta.getEnchants().isEmpty()) {
@@ -403,6 +460,45 @@ public final class MultiToolManager {
         meta.lore(List.of(
                 Component.text(stored == null ? "Kein Werkzeug gespeichert" : "Gespeichert: " + stored.getType().name()),
                 Component.text("Klick zum Bearbeiten")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createSettingsButton(ItemStack multitool) {
+        ItemStack item = new ItemStack(Material.COMPARATOR);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Auto-Auswahl Settings"));
+        meta.lore(List.of(
+                Component.text("Klick zum Oeffnen"),
+                Component.text("Lege fest, welches Tool bei Mobs bevorzugt wird")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createPreferenceButton(ItemStack multitool, PreferenceTarget target) {
+        ItemStack item = new ItemStack(target.getIcon());
+        ItemMeta meta = item.getItemMeta();
+        ToolKind current = getPreferredTool(multitool, target);
+        meta.displayName(Component.text(target.getDisplayName()));
+        meta.lore(List.of(
+                Component.text("Aktuell: " + current.getDisplayName()),
+                Component.text("Linksklick: naechstes Tool"),
+                Component.text("Rechtsklick: vorheriges Tool"),
+                Component.text("Moeglich: " + joinToolNames(target.getAllowedTools()))
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createSettingsInfo() {
+        ItemStack item = new ItemStack(Material.BOOK);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Settings"));
+        meta.lore(List.of(
+                Component.text("Hier stellst du die Bevorzugung fuer Ziele ein."),
+                Component.text("Aktuell steuerbar: feindliche und friedliche Mobs, Wasser-Mobs und unbekannte Ziele.")
         ));
         item.setItemMeta(meta);
         return item;
@@ -469,11 +565,20 @@ public final class MultiToolManager {
         lore.add(Component.text(activeTool == null ? "Aktiv: Regal" : "Aktiv: " + activeTool.getDisplayName()));
         lore.add(Component.text("Wechselt automatisch zum passenden Werkzeug."));
         lore.add(Component.text("Ducken + Rechtsklick oeffnet das Menue."));
+        lore.add(Component.text("Im Settings-Menue sind Ziel-Prioritaeten einstellbar."));
         lore.add(Component.text("Werkzeuge koennen intern gespeichert werden."));
         lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert."));
         lore.add(Component.text("Totem: " + (hasTotem ? "gespeichert" : "nicht gespeichert")));
         lore.add(Component.text("Bindung: " + (hasBinding ? "aktiv" : "nicht aktiv")));
         return lore;
+    }
+
+    private String joinToolNames(List<ToolKind> toolKinds) {
+        List<String> names = new ArrayList<>();
+        for (ToolKind toolKind : toolKinds) {
+            names.add(toolKind.getDisplayName());
+        }
+        return String.join(", ", names);
     }
 
     private ToolKind determineTool(Player player, ItemStack multitool) {
@@ -489,7 +594,7 @@ public final class MultiToolManager {
         if (entityTrace != null && entityTrace.getHitEntity() != null) {
             double distance = player.getEyeLocation().distance(entityTrace.getHitEntity().getLocation());
             if (distance <= blockDistance) {
-                ToolKind entityTool = determineEntityTool(entityTrace.getHitEntity(), distance);
+                ToolKind entityTool = determineEntityTool(multitool, entityTrace.getHitEntity(), distance);
                 if (entityTool != null && hasUsableTool(multitool, entityTool)) {
                     return entityTool;
                 }
@@ -505,17 +610,17 @@ public final class MultiToolManager {
         return null;
     }
 
-    private ToolKind determineEntityTool(Entity entity, double distance) {
+    private ToolKind determineEntityTool(ItemStack multitool, Entity entity, double distance) {
         if (entity instanceof WaterMob || entity instanceof Squid) {
-            return ToolKind.ROD;
+            return getPreferredTool(multitool, PreferenceTarget.WATER_ENTITY);
         }
         if (entity instanceof Monster) {
-            return distance > 10.0D ? ToolKind.BOW : ToolKind.SWORD;
+            return getPreferredTool(multitool, distance > 10.0D ? PreferenceTarget.HOSTILE_FAR : PreferenceTarget.HOSTILE_NEAR);
         }
         if (entity instanceof Animals) {
-            return distance > 10.0D ? ToolKind.BOW : ToolKind.SPEAR;
+            return getPreferredTool(multitool, distance > 10.0D ? PreferenceTarget.PASSIVE_FAR : PreferenceTarget.PASSIVE_NEAR);
         }
-        return null;
+        return getPreferredTool(multitool, distance > 10.0D ? PreferenceTarget.UNKNOWN_FAR : PreferenceTarget.UNKNOWN_NEAR);
     }
 
     private ToolKind determineBlockTool(Block block) {

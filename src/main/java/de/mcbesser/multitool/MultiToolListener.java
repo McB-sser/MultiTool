@@ -98,6 +98,10 @@ public final class MultiToolListener implements Listener {
             handleSelfUpgradeMenuClick(event, player, multitool);
             return;
         }
+        if (holder.getType() == MenuHolder.MenuType.SETTINGS) {
+            handleSettingsMenuClick(event, player, multitool);
+            return;
+        }
         handleUpgradeMenuClick(event, holder, player, multitool);
     }
 
@@ -211,12 +215,15 @@ public final class MultiToolListener implements Listener {
             case 14 -> ToolKind.ROD;
             case 15 -> ToolKind.BOW;
             case 16 -> ToolKind.SWORD;
+            case 18 -> null;
             case 21 -> ToolKind.PICKAXE;
             case 22 -> ToolKind.HOE;
             default -> null;
         };
         if (event.getRawSlot() == 13) {
             player.openInventory(manager.createSelfUpgradeMenu(player, multitool));
+        } else if (event.getRawSlot() == 18) {
+            player.openInventory(manager.createSettingsMenu(player, multitool));
         } else if (clicked != null) {
             player.openInventory(manager.createUpgradeMenu(player, multitool, clicked));
         }
@@ -273,6 +280,37 @@ public final class MultiToolListener implements Listener {
         if (clicked != null && !clicked.getType().isAir() && !manager.isAllowedUpgradeItem(holder.getToolKind(), clicked)) {
             event.setCancelled(true);
         }
+    }
+
+    private void handleSettingsMenuClick(InventoryClickEvent event, Player player, ItemStack multitool) {
+        int rawSlot = event.getRawSlot();
+        if (rawSlot == 0) {
+            event.setCancelled(true);
+            manager.refreshHeldMultitool(player);
+            player.openInventory(manager.createMainMenu(player, multitool));
+            return;
+        }
+        PreferenceTarget target = switch (rawSlot) {
+            case 10 -> PreferenceTarget.HOSTILE_NEAR;
+            case 11 -> PreferenceTarget.HOSTILE_FAR;
+            case 12 -> PreferenceTarget.PASSIVE_NEAR;
+            case 14 -> PreferenceTarget.PASSIVE_FAR;
+            case 15 -> PreferenceTarget.WATER_ENTITY;
+            case 16 -> PreferenceTarget.UNKNOWN_NEAR;
+            case 22 -> PreferenceTarget.UNKNOWN_FAR;
+            default -> null;
+        };
+        if (target == null) {
+            if (rawSlot < event.getView().getTopInventory().getSize()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        event.setCancelled(true);
+        boolean reverse = event.isRightClick();
+        manager.cyclePreferredTool(multitool, target, reverse);
+        manager.refreshHeldMultitool(player);
+        player.openInventory(manager.createSettingsMenu(player, multitool));
     }
 
     private ItemStack findMultitoolWithTotem(Player player) {
