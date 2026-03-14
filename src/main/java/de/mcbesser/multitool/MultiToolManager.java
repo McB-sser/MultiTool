@@ -14,6 +14,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Tag;
+import org.bukkit.entity.HumanEntity;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.data.Waterlogged;
@@ -27,6 +28,8 @@ import org.bukkit.entity.WaterMob;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.RecipeChoice;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -39,10 +42,10 @@ import org.bukkit.util.io.BukkitObjectOutputStream;
 public final class MultiToolManager {
     private static final Component MULTITOOL_NAME = Component.text("Multitool");
     private static final Set<Material> SHELF_MATERIALS = Set.of(
-            Material.OAK_FENCE_GATE, Material.SPRUCE_FENCE_GATE, Material.BIRCH_FENCE_GATE,
-            Material.JUNGLE_FENCE_GATE, Material.ACACIA_FENCE_GATE, Material.DARK_OAK_FENCE_GATE,
-            Material.MANGROVE_FENCE_GATE, Material.CHERRY_FENCE_GATE, Material.BAMBOO_FENCE_GATE,
-            Material.CRIMSON_FENCE_GATE, Material.WARPED_FENCE_GATE
+            Material.OAK_SHELF, Material.SPRUCE_SHELF, Material.BIRCH_SHELF,
+            Material.JUNGLE_SHELF, Material.ACACIA_SHELF, Material.DARK_OAK_SHELF,
+            Material.MANGROVE_SHELF, Material.CHERRY_SHELF, Material.BAMBOO_SHELF,
+            Material.CRIMSON_SHELF, Material.WARPED_SHELF
     );
     private static final Set<Material> HOE_PREFERRED = Set.of(
             Material.FARMLAND, Material.SHORT_GRASS, Material.TALL_GRASS, Material.FERN, Material.LARGE_FERN,
@@ -58,8 +61,8 @@ public final class MultiToolManager {
     private final NamespacedKey selectedToolKey;
     private final NamespacedKey storedTotemKey;
     private final NamespacedKey storedBindingKey;
+    private final NamespacedKey multitoolRecipeKey;
     private final Map<ToolKind, NamespacedKey> toolKeys = new EnumMap<>(ToolKind.class);
-    private final Material spearMaterial;
 
     public MultiToolManager(MultiToolPlugin plugin) {
         this.plugin = plugin;
@@ -68,10 +71,30 @@ public final class MultiToolManager {
         this.selectedToolKey = new NamespacedKey(plugin, "selected_tool");
         this.storedTotemKey = new NamespacedKey(plugin, "stored_totem");
         this.storedBindingKey = new NamespacedKey(plugin, "stored_binding");
-        this.spearMaterial = resolveSpearMaterial();
+        this.multitoolRecipeKey = new NamespacedKey(plugin, "multitool");
         for (ToolKind toolKind : ToolKind.values()) {
             toolKeys.put(toolKind, new NamespacedKey(plugin, "tool_" + toolKind.name().toLowerCase()));
         }
+    }
+
+    public void registerRecipes() {
+        ShapedRecipe recipe = new ShapedRecipe(multitoolRecipeKey, createMultitool(Material.OAK_SHELF));
+        recipe.shape("ASP", "RLB", "KCH");
+        recipe.setIngredient('A', Material.WOODEN_AXE);
+        recipe.setIngredient('S', Material.WOODEN_SHOVEL);
+        recipe.setIngredient('P', Material.WOODEN_SPEAR);
+        recipe.setIngredient('R', Material.FISHING_ROD);
+        recipe.setIngredient('L', new RecipeChoice.MaterialChoice(new ArrayList<>(SHELF_MATERIALS)));
+        recipe.setIngredient('B', Material.BOW);
+        recipe.setIngredient('K', Material.WOODEN_SWORD);
+        recipe.setIngredient('C', Material.WOODEN_PICKAXE);
+        recipe.setIngredient('H', Material.WOODEN_HOE);
+        Bukkit.removeRecipe(multitoolRecipeKey);
+        Bukkit.addRecipe(recipe);
+    }
+
+    public void discoverRecipes(HumanEntity player) {
+        player.discoverRecipe(multitoolRecipeKey);
     }
 
     public ItemStack createMultitool(Material baseMaterial) {
@@ -84,14 +107,6 @@ public final class MultiToolManager {
         meta.getPersistentDataContainer().set(selectedToolKey, PersistentDataType.STRING, "");
         item.setItemMeta(meta);
         return item;
-    }
-
-    public boolean hasNativeSpearMaterial() {
-        return spearMaterial != null;
-    }
-
-    public Material getSpearMaterial() {
-        return spearMaterial;
     }
 
     public boolean isMultitool(ItemStack item) {
@@ -107,11 +122,11 @@ public final class MultiToolManager {
 
     public Material getBaseMaterial(ItemStack item) {
         if (!isMultitool(item)) {
-            return Material.OAK_FENCE_GATE;
+            return Material.OAK_SHELF;
         }
         String stored = item.getItemMeta().getPersistentDataContainer().get(baseMaterialKey, PersistentDataType.STRING);
         Material material = stored == null ? null : Material.matchMaterial(stored);
-        return material == null ? Material.OAK_FENCE_GATE : material;
+        return material == null ? Material.OAK_SHELF : material;
     }
 
     public ItemStack getStoredTool(ItemStack multitool, ToolKind toolKind) {
@@ -192,7 +207,7 @@ public final class MultiToolManager {
             case SWORD -> Tag.ITEMS_SWORDS.isTagged(item.getType());
             case BOW -> item.getType() == Material.BOW;
             case ROD -> item.getType() == Material.FISHING_ROD;
-            case SPEAR -> spearMaterial != null && item.getType() == spearMaterial;
+            case SPEAR -> item.getType() == Material.WOODEN_SPEAR;
         };
     }
 
@@ -291,8 +306,7 @@ public final class MultiToolManager {
         return matrix.length >= 9
                 && matches(matrix[0], Material.WOODEN_AXE)
                 && matches(matrix[1], Material.WOODEN_SHOVEL)
-                && spearMaterial != null
-                && matches(matrix[2], spearMaterial)
+                && matches(matrix[2], Material.WOODEN_SPEAR)
                 && matches(matrix[3], Material.FISHING_ROD)
                 && matrix[4] != null
                 && isShelfMaterial(matrix[4].getType())
@@ -510,18 +524,7 @@ public final class MultiToolManager {
     }
 
     private Material getMenuMaterial(ToolKind toolKind) {
-        if (toolKind == ToolKind.SPEAR && spearMaterial != null) {
-            return spearMaterial;
-        }
         return toolKind.getDefaultMaterial();
-    }
-
-    private Material resolveSpearMaterial() {
-        Material woodenSpear = Material.matchMaterial("WOODEN_SPEAR");
-        if (woodenSpear != null) {
-            return woodenSpear;
-        }
-        return Material.matchMaterial("SPEAR");
     }
 
     private ItemStack getStoredItem(ItemStack multitool, NamespacedKey key) {

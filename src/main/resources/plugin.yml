@@ -1,6 +1,6 @@
 name: MultiTool
 version: 1.0.0
 main: de.mcbesser.multitool.MultiToolPlugin
-api-version: '1.20'
+api-version: '1.21'
 author: McB_sser
 description: Enchanted bookshelf multitool with internal upgrades and automatic tool switching.

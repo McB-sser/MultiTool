@@ -5,7 +5,7 @@ import org.bukkit.Material;
 public enum ToolKind {
     AXE("Axt", Material.WOODEN_AXE),
     SHOVEL("Schaufel", Material.WOODEN_SHOVEL),
-    SPEAR("Speer", Material.TRIDENT),
+    SPEAR("Speer", Material.WOODEN_SPEAR),
     ROD("Angel", Material.FISHING_ROD),
     BOW("Bogen", Material.BOW),
     SWORD("Schwert", Material.WOODEN_SWORD),

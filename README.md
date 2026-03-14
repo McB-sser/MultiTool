@@ -1,6 +1,6 @@
 # MultiTool
 
-MultiTool ist ein Minecraft-Plugin fuer Paper/Spigot-Server, das ein verzaubertes Holz-Regal in ein intelligentes Universalwerkzeug verwandelt. Das Item heisst `Multitool`, speichert mehrere Werkzeuge direkt in seinem eigenen Inventar und waehlt automatisch das passende Werkzeug oder die passende Waffe aus, je nachdem, worauf der Spieler schaut.
+MultiTool ist ein Minecraft-Plugin fuer Paper/Spigot-Server auf Basis der 1.21-API, das ein verzaubertes Holz-Regal in ein intelligentes Universalwerkzeug verwandelt. Das Item heisst `Multitool`, speichert mehrere Werkzeuge direkt in seinem eigenen Inventar und waehlt automatisch das passende Werkzeug oder die passende Waffe aus, je nachdem, worauf der Spieler schaut.
 
 Das Plugin ist fuer Spieler gedacht, die nicht staendig zwischen Spitzhacke, Axt, Harke, Schwert, Bogen, Angel oder anderen Werkzeugen wechseln wollen. Statt viele einzelne Items in der Hotbar mitzuschleppen, wird alles in einem zentralen Item gebuendelt. Das Multitool kann ausserdem um ein Totem of Undying und ein Buch mit Fluch der Bindung erweitert werden.
 
@@ -26,7 +26,7 @@ Wenn ein gespeichertes Werkzeug nur noch `1` Haltbarkeit uebrig hat, wird es aut
 - Ein einziges Item speichert mehrere Werkzeuge gleichzeitig.
 - Automatische Werkzeugwahl anhand des aktuell anvisierten Blocks oder Mobs.
 - Werkzeug-Upgrades koennen direkt im Multitool-Menue eingelegt und wieder entnommen werden.
-- Das Multitool behaelt die Holzfarbe des verwendeten Regals.
+- Das Multitool behaelt die Holzfarbe des verwendeten Shelf-Regals.
 - Ein gespeichertes Totem kann beim Tod automatisch ausgeloest werden.
 - Ein gespeichertes Buch mit Fluch der Bindung verhindert das Droppen oder Ablegen in Container.
 - Fast defekte Werkzeuge werden automatisch deaktiviert, bevor sie zerbrechen.
@@ -46,9 +46,9 @@ Verwendete Zutaten:
 
 - `Wooden Axe`
 - `Wooden Shovel`
-- nativer `Holzspeer`
+- `WOODEN_SPEAR`
 - `Fishing Rod`
-- ein Holz-Regal
+- ein Holz-`SHELF`
 - `Bow`
 - `Wooden Sword`
 - `Wooden Pickaxe`
@@ -56,16 +56,16 @@ Verwendete Zutaten:
 
 Wichtiger Hinweis zum aktuellen Stand:
 
-- Das im Plugin verwendete "Regal" ist technisch ein Holz-`FENCE_GATE`, weil dieses Item je nach Holzsorte verschiedene Varianten besitzt.
-- Dadurch kann das Multitool die Farbe beziehungsweise Holzart des verwendeten Regals uebernehmen.
+- Das Plugin verwendet die 1.21-Holzregale als echte `*_SHELF`-Items.
+- Dadurch uebernimmt das Multitool direkt die Farbe beziehungsweise Holzart des verwendeten Regals.
 - Unterstuetzt werden alle normalen Holzvarianten sowie Crimson und Warped.
-- Fuer den Speer wird kein Custom-Item erzeugt. Das Plugin erwartet ein natives Server-Item mit Materialname `WOODEN_SPEAR` oder `SPEAR`.
+- Fuer den Speer wird kein Custom-Item erzeugt. Das Rezept erwartet den nativen `WOODEN_SPEAR` der 1.21-API.
 
 ## Wie man das Multitool benutzt
 
 ### 1. Multitool herstellen
 
-Besorge zuerst einen nativen Holzspeer auf deinem Server. Danach platziere alle benoetigten Gegenstaende im Crafting-Feld entsprechend dem Rezept. Das Ergebnis ist ein verzaubertes Regal mit dem Namen `Multitool`.
+Besorge zuerst einen nativen `WOODEN_SPEAR` auf deinem Server. Danach platziere alle benoetigten Gegenstaende im Crafting-Feld entsprechend dem Rezept. Das Ergebnis ist ein verzaubertes Regal mit dem Namen `Multitool`.
 
 ### 2. Multitool in die Hand nehmen
 
@@ -168,7 +168,7 @@ Das verhindert, dass Werkzeuge im normalen Einsatz versehentlich zerbrechen.
 ## Technische Hinweise
 
 - Projektformat: Maven
-- Zielplattform: Paper/Spigot 1.20.6 API
+- Zielplattform: Paper/Spigot 1.21.x API
 - Java-Version: 17
 - Das Plugin wurde so gebaut, dass es als normales Server-Plugin in den `plugins`-Ordner gelegt werden kann.
 
