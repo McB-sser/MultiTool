@@ -67,6 +67,7 @@ public final class MultiToolManager {
     private final Map<ToolKind, NamespacedKey> toolKeys = new EnumMap<>(ToolKind.class);
     private final Map<PreferenceTarget, NamespacedKey> preferenceKeys = new EnumMap<>(PreferenceTarget.class);
     private final Set<Material> spearMaterials;
+    private final MultiToolSidebar sidebar;
 
     public MultiToolManager(MultiToolPlugin plugin) {
         this.plugin = plugin;
@@ -77,6 +78,7 @@ public final class MultiToolManager {
         this.storedBindingKey = new NamespacedKey(plugin, "stored_binding");
         this.multitoolRecipeKey = new NamespacedKey(plugin, "multitool");
         this.spearMaterials = resolveSpearMaterials();
+        this.sidebar = new MultiToolSidebar(this);
         for (ToolKind toolKind : ToolKind.values()) {
             toolKeys.put(toolKind, new NamespacedKey(plugin, "tool_" + toolKind.name().toLowerCase()));
         }
@@ -340,11 +342,25 @@ public final class MultiToolManager {
     public void refreshHeldMultitool(Player player) {
         ItemStack item = player.getInventory().getItemInMainHand();
         if (!isMultitool(item)) {
+            sidebar.clear(player);
             return;
         }
         ToolKind next = determineTool(player, item);
         applySelectedDisplay(item, next);
         player.getInventory().setItemInMainHand(item);
+        sidebar.update(player, item);
+    }
+
+    public void clearSidebar(Player player) {
+        sidebar.clear(player);
+    }
+
+    public void clearAllSidebars() {
+        sidebar.clearAll();
+    }
+
+    public void scheduleRefreshHeldMultitool(Player player) {
+        Bukkit.getScheduler().runTask(plugin, () -> refreshHeldMultitool(player));
     }
 
     public void syncDamageFromUse(ItemStack itemInHand, int damageAmount) {

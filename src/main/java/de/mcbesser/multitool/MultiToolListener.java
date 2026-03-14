@@ -142,11 +142,7 @@ public final class MultiToolListener implements Listener {
 
     @EventHandler
     public void onHeldItem(PlayerItemHeldEvent event) {
-        Player player = event.getPlayer();
-        ItemStack next = player.getInventory().getItem(event.getNewSlot());
-        if (manager.isMultitool(next)) {
-            manager.refreshHeldMultitool(player);
-        }
+        manager.scheduleRefreshHeldMultitool(event.getPlayer());
     }
 
     @EventHandler

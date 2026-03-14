@@ -13,6 +13,13 @@ public final class MultiToolPlugin extends JavaPlugin {
         getServer().getOnlinePlayers().forEach(multiToolManager::discoverRecipes);
     }
 
+    @Override
+    public void onDisable() {
+        if (multiToolManager != null) {
+            multiToolManager.clearAllSidebars();
+        }
+    }
+
     public MultiToolManager getMultiToolManager() {
         return multiToolManager;
     }
