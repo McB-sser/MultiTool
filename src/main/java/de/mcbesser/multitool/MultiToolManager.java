@@ -520,7 +520,10 @@ public final class MultiToolManager {
         if (Tag.LEAVES.isTagged(type) || HOE_PREFERRED.contains(type) || Tag.MINEABLE_HOE.isTagged(type)) {
             return ToolKind.HOE;
         }
-        if (Tag.LOGS.isTagged(type) || type.name().endsWith("_WOOD") || type.name().endsWith("_HYPHAE")) {
+        if (Tag.MINEABLE_AXE.isTagged(type)
+                || Tag.LOGS.isTagged(type)
+                || type.name().endsWith("_WOOD")
+                || type.name().endsWith("_HYPHAE")) {
             return ToolKind.AXE;
         }
         if (Tag.MINEABLE_PICKAXE.isTagged(type)) {
