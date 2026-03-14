@@ -37,9 +37,7 @@ public final class MultiToolListener implements Listener {
         ItemStack[] matrix = event.getInventory().getMatrix();
         if (manager.matchesMultitoolRecipe(matrix)) {
             event.getInventory().setResult(manager.createRecipeResult(matrix));
-            return;
         }
-        event.getInventory().setResult(null);
     }
 
     @EventHandler
