@@ -55,7 +55,7 @@ public final class MultiToolManager {
             Material.SEAGRASS, Material.TALL_SEAGRASS, Material.VINE, Material.GLOW_LICHEN,
             Material.SWEET_BERRY_BUSH, Material.NETHER_WART, Material.WHEAT, Material.CARROTS,
             Material.POTATOES, Material.BEETROOTS, Material.MELON_STEM, Material.ATTACHED_MELON_STEM,
-            Material.PUMPKIN_STEM, Material.ATTACHED_PUMPKIN_STEM, Material.COCOA
+            Material.PUMPKIN_STEM, Material.ATTACHED_PUMPKIN_STEM
     );
 
     private final MultiToolPlugin plugin;
@@ -647,6 +647,9 @@ public final class MultiToolManager {
         }
         if (!playerInWater && block.getBlockData() instanceof Waterlogged waterlogged && waterlogged.isWaterlogged()) {
             return ToolKind.ROD;
+        }
+        if (type == Material.COCOA) {
+            return ToolKind.AXE;
         }
         if (Tag.LEAVES.isTagged(type) || HOE_PREFERRED.contains(type) || Tag.MINEABLE_HOE.isTagged(type)) {
             return ToolKind.HOE;
