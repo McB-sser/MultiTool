@@ -155,7 +155,7 @@ public final class MultiToolListener implements Listener {
         if (!manager.isMultitool(event.getItem())) {
             return;
         }
-        manager.syncDamageFromUse(event.getItem());
+        manager.syncDamageFromUse(event.getItem(), event.getDamage());
         manager.refreshHeldMultitool(event.getPlayer());
     }
 

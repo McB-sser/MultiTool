@@ -289,7 +289,7 @@ public final class MultiToolManager {
         player.getInventory().setItemInMainHand(item);
     }
 
-    public void syncDamageFromUse(ItemStack itemInHand) {
+    public void syncDamageFromUse(ItemStack itemInHand, int damageAmount) {
         if (!isMultitool(itemInHand)) {
             return;
         }
@@ -301,7 +301,8 @@ public final class MultiToolManager {
         if (stored == null || !(stored.getItemMeta() instanceof Damageable storedMeta) || !(itemInHand.getItemMeta() instanceof Damageable handMeta)) {
             return;
         }
-        storedMeta.setDamage(handMeta.getDamage());
+        int updatedDamage = handMeta.getDamage() + Math.max(damageAmount, 0);
+        storedMeta.setDamage(updatedDamage);
         stored.setItemMeta((ItemMeta) storedMeta);
         setStoredTool(itemInHand, selected, stored);
     }
