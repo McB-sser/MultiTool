@@ -141,6 +141,7 @@ public final class MultiToolListener implements Listener {
 
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
+        manager.discoverRecipes(event.getPlayer());
         manager.refreshHeldMultitool(event.getPlayer());
     }
 
