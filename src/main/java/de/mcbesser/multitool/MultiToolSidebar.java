@@ -100,7 +100,7 @@ public final class MultiToolSidebar {
     }
 
     private String buildLine(ToolKind toolKind, ItemStack stored, boolean selected) {
-        String marker = selected ? ChatColor.GOLD + ">" : ChatColor.DARK_GRAY + "-";
+        String marker = selected ? ChatColor.GOLD + ">" : ChatColor.DARK_GRAY + ">";
         if (stored == null || stored.getType().isAir()) {
             return marker + ChatColor.GRAY + toolKind.getDisplayName() + ": leer";
         }
