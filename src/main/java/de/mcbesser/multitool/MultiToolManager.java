@@ -23,6 +23,7 @@ import org.bukkit.block.data.Waterlogged;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Animals;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Monster;
 import org.bukkit.entity.Player;
@@ -739,6 +740,9 @@ public final class MultiToolManager {
     }
 
     private ToolKind determineEntityTool(ItemStack multitool, Entity entity, double distance) {
+        if (entity.getType() == EntityType.COPPER_GOLEM) {
+            return ToolKind.AXE;
+        }
         if (entity instanceof WaterMob || entity instanceof Squid) {
             return getPreferredTool(multitool, PreferenceTarget.WATER_ENTITY);
         }
@@ -753,6 +757,9 @@ public final class MultiToolManager {
 
     private ToolKind determineBlockTool(Block block, boolean playerInWater) {
         Material type = block.getType();
+        if (type == Material.BAMBOO) {
+            return ToolKind.SWORD;
+        }
         if (!playerInWater && (type == Material.WATER || block.getRelative(BlockFace.UP).getType() == Material.WATER)) {
             return ToolKind.ROD;
         }
