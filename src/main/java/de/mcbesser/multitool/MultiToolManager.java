@@ -1185,7 +1185,7 @@ public final class MultiToolManager {
     }
 
     private int findFirstUsableToolSlot(ItemStack multitool, ToolKind toolKind) {
-        int unlockedSlots = getUnlockedToolSlots(multitool);
+        int unlockedSlots = getUnlockedToolSlots(multitool, toolKind);
         for (int slotIndex = 0; slotIndex < unlockedSlots; slotIndex++) {
             if (isUsable(getStoredTool(multitool, toolKind, slotIndex))) {
                 return slotIndex;
