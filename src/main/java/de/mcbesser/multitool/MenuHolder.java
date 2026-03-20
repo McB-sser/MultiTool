@@ -8,7 +8,9 @@ public final class MenuHolder implements InventoryHolder {
     public enum MenuType {
         MAIN,
         UPGRADE,
+        TOTEM_UPGRADE,
         SELF_UPGRADE,
+        SHELF_UPGRADE,
         SETTINGS
     }
 

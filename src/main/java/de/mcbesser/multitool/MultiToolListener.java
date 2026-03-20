@@ -133,6 +133,14 @@ public final class MultiToolListener implements Listener {
             handleSelfUpgradeMenuClick(event, player, multitool);
             return;
         }
+        if (holder.getType() == MenuHolder.MenuType.TOTEM_UPGRADE) {
+            handleTotemUpgradeMenuClick(event, holder, player, multitool);
+            return;
+        }
+        if (holder.getType() == MenuHolder.MenuType.SHELF_UPGRADE) {
+            handleShelfUpgradeMenuClick(event, player, multitool);
+            return;
+        }
         if (holder.getType() == MenuHolder.MenuType.SETTINGS) {
             handleSettingsMenuClick(event, player, multitool);
             return;
@@ -156,6 +164,10 @@ public final class MultiToolListener implements Listener {
             manager.saveUpgradeMenu(multitool, holder.getToolKind(), inventory);
         } else if (holder.getType() == MenuHolder.MenuType.SELF_UPGRADE) {
             manager.saveSelfUpgradeMenu(multitool, inventory);
+        } else if (holder.getType() == MenuHolder.MenuType.TOTEM_UPGRADE) {
+            manager.saveTotemUpgradeMenu(multitool, inventory);
+        } else if (holder.getType() == MenuHolder.MenuType.SHELF_UPGRADE) {
+            manager.saveShelfUpgradeMenu(multitool, inventory);
         }
         manager.refreshHeldMultitool(player);
     }
@@ -247,23 +259,46 @@ public final class MultiToolListener implements Listener {
     }
 
     private void handleMainMenuClick(InventoryClickEvent event, Player player, ItemStack multitool) {
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+        if (rawSlot >= topSize) {
+            if (event.isShiftClick()) {
+                event.setCancelled(true);
+            }
+            return;
+        }
         event.setCancelled(true);
-        ToolKind clicked = switch (event.getRawSlot()) {
-            case 13 -> null;
+        ToolKind clicked = switch (rawSlot) {
+            case 9 -> ToolKind.PICKAXE;
             case 10 -> ToolKind.AXE;
             case 11 -> ToolKind.SHOVEL;
-            case 12 -> ToolKind.SPEAR;
-            case 14 -> ToolKind.ROD;
-            case 15 -> ToolKind.BOW;
-            case 16 -> ToolKind.SWORD;
-            case 18 -> null;
-            case 21 -> ToolKind.PICKAXE;
-            case 22 -> ToolKind.HOE;
+            case 12 -> ToolKind.HOE;
+            case 13 -> ToolKind.ROD;
+            case 14 -> ToolKind.BOW;
+            case 15 -> ToolKind.SWORD;
+            case 16 -> ToolKind.SPEAR;
             default -> null;
         };
-        if (event.getRawSlot() == 13) {
-            player.openInventory(manager.createSelfUpgradeMenu(player, multitool));
-        } else if (event.getRawSlot() == 18) {
+        ToolKind durabilityTarget = switch (rawSlot) {
+            case 0 -> ToolKind.PICKAXE;
+            case 1 -> ToolKind.AXE;
+            case 2 -> ToolKind.SHOVEL;
+            case 3 -> ToolKind.HOE;
+            case 4 -> ToolKind.ROD;
+            case 5 -> ToolKind.BOW;
+            case 6 -> ToolKind.SWORD;
+            case 7 -> ToolKind.SPEAR;
+            default -> null;
+        };
+        if (durabilityTarget != null) {
+            handleMainMenuDurabilityClick(event, player, multitool, durabilityTarget);
+        } else if (rawSlot == 8) {
+            handleMainMenuTotemDurabilityClick(event, player, multitool);
+        } else if (rawSlot == 17) {
+            player.openInventory(manager.createTotemUpgradeMenu(player, multitool));
+        } else if (rawSlot == 18) {
+            player.openInventory(manager.createShelfUpgradeMenu(player, multitool));
+        } else if (rawSlot == 26) {
             player.openInventory(manager.createSettingsMenu(player, multitool));
         } else if (clicked != null) {
             player.openInventory(manager.createUpgradeMenu(player, multitool, clicked));
@@ -272,48 +307,208 @@ public final class MultiToolListener implements Listener {
 
     private void handleSelfUpgradeMenuClick(InventoryClickEvent event, Player player, ItemStack multitool) {
         int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
         if (rawSlot == 0) {
             event.setCancelled(true);
             manager.saveSelfUpgradeMenu(multitool, event.getInventory());
             player.openInventory(manager.createMainMenu(player, multitool));
             return;
         }
-        if (rawSlot == 2 || rawSlot == 5 || rawSlot == 8) {
+        if (rawSlot == 1 || rawSlot == 7 || rawSlot == 8) {
             event.setCancelled(true);
             return;
         }
-        if (rawSlot == 3 || rawSlot == 6) {
+        if (rawSlot == 2) {
+            if (tryMoveTopItemToPlayerInventory(event, player, rawSlot)) {
+                return;
+            }
             ItemStack cursor = event.getCursor();
             if (cursor != null && !cursor.getType().isAir() && !manager.isAllowedSelfUpgradeItem(rawSlot, cursor)) {
                 event.setCancelled(true);
             }
             return;
         }
-        if (rawSlot < event.getView().getTopInventory().getSize()) {
+        if (rawSlot >= topSize) {
+            if (event.isShiftClick() && moveSelfUpgradeItem(event, rawSlot)) {
+                return;
+            }
+            return;
+        }
+        if (event.isShiftClick() && moveSelfUpgradeItem(event, rawSlot)) {
+            return;
+        }
+        if (rawSlot < topSize) {
             event.setCancelled(true);
         }
     }
 
+    private boolean moveSelfUpgradeItem(InventoryClickEvent event, int rawSlot) {
+        if (rawSlot < event.getView().getTopInventory().getSize()) {
+            return false;
+        }
+        ItemStack clicked = event.getCurrentItem();
+        if (clicked == null || clicked.getType().isAir()) {
+            return false;
+        }
+
+        int targetSlot = -1;
+        for (int slot : new int[] {2, 4, 6}) {
+            if (manager.isAllowedSelfUpgradeItem(slot, clicked) && isEmpty(event.getInventory().getItem(slot))) {
+                targetSlot = slot;
+                break;
+            }
+        }
+        if (targetSlot < 0) {
+            return false;
+        }
+
+        event.setCancelled(true);
+        event.getInventory().setItem(targetSlot, clicked.clone());
+        event.setCurrentItem(null);
+        return true;
+    }
+
+    private boolean isEmpty(ItemStack item) {
+        return item == null || item.getType().isAir();
+    }
+
+    private boolean handleSelfUpgradeInfoProxyClick(InventoryClickEvent event, Player player, int rawSlot) {
+        int targetSlot = switch (rawSlot) {
+            case 1 -> 2;
+            case 3 -> 4;
+            case 5 -> 6;
+            default -> -1;
+        };
+        if (targetSlot < 0) {
+            return false;
+        }
+
+        ItemStack cursor = event.getCursor();
+        if (!isEmpty(cursor)) {
+            if (!manager.isAllowedSelfUpgradeItem(targetSlot, cursor)) {
+                event.setCancelled(true);
+                return true;
+            }
+            if (!isEmpty(event.getInventory().getItem(targetSlot))) {
+                event.setCancelled(true);
+                return true;
+            }
+            event.setCancelled(true);
+            event.getInventory().setItem(targetSlot, cursor.clone());
+            event.getView().setCursor(null);
+            return true;
+        }
+
+        return tryMoveTopItemToPlayerInventory(event, player, targetSlot);
+    }
+
+    private void handleTotemUpgradeMenuClick(InventoryClickEvent event, MenuHolder holder, Player player, ItemStack multitool) {
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+        if (rawSlot == 0) {
+            event.setCancelled(true);
+            manager.saveTotemUpgradeMenu(multitool, event.getInventory());
+            player.openInventory(manager.createMainMenu(player, multitool));
+            return;
+        }
+        if (rawSlot == 1) {
+            if (handleDurabilityUpgradeProxyClick(event, player, multitool, holder)) {
+                return;
+            }
+            event.setCancelled(true);
+            return;
+        }
+        if (rawSlot == 7 || rawSlot == 8) {
+            event.setCancelled(true);
+            return;
+        }
+        if (rawSlot >= 2 && rawSlot <= 5) {
+            if (!manager.isUnlockedUpgradeSlot(multitool, null, rawSlot)) {
+                event.setCancelled(true);
+                return;
+            }
+            if (tryMoveTopItemToPlayerInventory(event, player, rawSlot)) {
+                return;
+            }
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && !cursor.getType().isAir() && cursor.getType() != org.bukkit.Material.TOTEM_OF_UNDYING) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        if (rawSlot >= topSize) {
+            return;
+        }
+        event.setCancelled(true);
+    }
+
+    private void handleShelfUpgradeMenuClick(InventoryClickEvent event, Player player, ItemStack multitool) {
+        int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
+        if (rawSlot == 0) {
+            event.setCancelled(true);
+            manager.saveShelfUpgradeMenu(multitool, event.getInventory());
+            player.openInventory(manager.createMainMenu(player, multitool));
+            return;
+        }
+        if (rawSlot == 1) {
+            if (tryMoveTopItemToPlayerInventory(event, player, rawSlot)) {
+                return;
+            }
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && !cursor.getType().isAir() && !manager.isAllowedSelfUpgradeItem(6, cursor)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+        if (rawSlot == 7 || rawSlot == 8) {
+            event.setCancelled(true);
+            return;
+        }
+        if (rawSlot >= topSize) {
+            return;
+        }
+        event.setCancelled(true);
+    }
+
     private void handleUpgradeMenuClick(InventoryClickEvent event, MenuHolder holder, Player player, ItemStack multitool) {
         int rawSlot = event.getRawSlot();
+        int topSize = event.getView().getTopInventory().getSize();
         if (rawSlot == 0) {
             event.setCancelled(true);
             manager.saveUpgradeMenu(multitool, holder.getToolKind(), event.getInventory());
             player.openInventory(manager.createMainMenu(player, multitool));
             return;
         }
-        if (rawSlot == 2) {
+        if (rawSlot == 1) {
+            if (handleDurabilityUpgradeProxyClick(event, player, multitool, holder)) {
+                return;
+            }
             event.setCancelled(true);
             return;
         }
-        if (rawSlot == 4) {
+        if (rawSlot == 7 || rawSlot == 8) {
+            event.setCancelled(true);
+            return;
+        }
+        if (rawSlot >= 2 && rawSlot <= 5) {
+            if (!manager.isUnlockedUpgradeSlot(multitool, holder.getToolKind(), rawSlot)) {
+                event.setCancelled(true);
+                return;
+            }
+            if (tryMoveTopItemToPlayerInventory(event, player, rawSlot)) {
+                return;
+            }
             ItemStack cursor = event.getCursor();
             if (cursor != null && !cursor.getType().isAir() && !manager.isAllowedUpgradeItem(holder.getToolKind(), cursor)) {
                 event.setCancelled(true);
             }
             return;
         }
-        if (rawSlot < event.getView().getTopInventory().getSize()) {
+        if (rawSlot >= topSize) {
+            return;
+        }
+        if (rawSlot < topSize) {
             event.setCancelled(true);
             return;
         }
@@ -405,5 +600,136 @@ public final class MultiToolListener implements Listener {
             return true;
         }
         return false;
+    }
+
+    private boolean tryMoveTopItemToPlayerInventory(InventoryClickEvent event, Player player, int rawSlot) {
+        if (rawSlot >= event.getView().getTopInventory().getSize()) {
+            return false;
+        }
+        if (event.getClick().isShiftClick()) {
+            return false;
+        }
+        if (!isEmpty(event.getCursor())) {
+            return false;
+        }
+        ItemStack current = event.getInventory().getItem(rawSlot);
+        if (isEmpty(current)) {
+            return false;
+        }
+        if (player.getInventory().firstEmpty() < 0) {
+            event.setCancelled(true);
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
+            return true;
+        }
+        event.setCancelled(true);
+        player.getInventory().addItem(current.clone());
+        event.getInventory().setItem(rawSlot, null);
+        return true;
+    }
+
+    private boolean handleDurabilityUpgradeProxyClick(
+            InventoryClickEvent event,
+            Player player,
+            ItemStack multitool,
+            MenuHolder holder
+    ) {
+        if (holder.getType() == MenuHolder.MenuType.UPGRADE) {
+            manager.saveUpgradeMenu(multitool, holder.getToolKind(), event.getInventory());
+        } else if (holder.getType() == MenuHolder.MenuType.TOTEM_UPGRADE) {
+            manager.saveTotemUpgradeMenu(multitool, event.getInventory());
+        }
+        ItemStack cursor = event.getCursor();
+        if (!isEmpty(cursor)) {
+            if (!manager.isAllowedSelfUpgradeItem(2, cursor)) {
+                event.setCancelled(true);
+                return true;
+            }
+            event.setCancelled(true);
+            if (holder.getType() == MenuHolder.MenuType.UPGRADE) {
+                manager.setStoredDurabilityBook(multitool, holder.getToolKind(), cursor.clone());
+            } else {
+                manager.setStoredTotemDurabilityBook(multitool, cursor.clone());
+            }
+            event.getView().setCursor(null);
+            reopenUpgradeMenu(player, multitool, holder);
+            return true;
+        }
+
+        ItemStack stored = holder.getType() == MenuHolder.MenuType.UPGRADE
+                ? manager.getStoredDurabilityBook(multitool, holder.getToolKind())
+                : manager.getStoredTotemDurabilityBook(multitool);
+        if (isEmpty(stored)) {
+            return false;
+        }
+        if (player.getInventory().firstEmpty() < 0) {
+            event.setCancelled(true);
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
+            return true;
+        }
+        event.setCancelled(true);
+        player.getInventory().addItem(stored.clone());
+        if (holder.getType() == MenuHolder.MenuType.UPGRADE) {
+            manager.setStoredDurabilityBook(multitool, holder.getToolKind(), null);
+        } else {
+            manager.setStoredTotemDurabilityBook(multitool, null);
+        }
+        reopenUpgradeMenu(player, multitool, holder);
+        return true;
+    }
+
+    private void reopenUpgradeMenu(Player player, ItemStack multitool, MenuHolder holder) {
+        if (holder.getType() == MenuHolder.MenuType.UPGRADE) {
+            player.openInventory(manager.createUpgradeMenu(player, multitool, holder.getToolKind()));
+        } else if (holder.getType() == MenuHolder.MenuType.TOTEM_UPGRADE) {
+            player.openInventory(manager.createTotemUpgradeMenu(player, multitool));
+        }
+    }
+
+    private void handleMainMenuDurabilityClick(InventoryClickEvent event, Player player, ItemStack multitool, ToolKind toolKind) {
+        ItemStack cursor = event.getCursor();
+        if (!isEmpty(cursor)) {
+            if (!manager.isAllowedSelfUpgradeItem(2, cursor)) {
+                return;
+            }
+            manager.setStoredDurabilityBook(multitool, toolKind, cursor.clone());
+            event.getView().setCursor(null);
+            player.openInventory(manager.createMainMenu(player, multitool));
+            return;
+        }
+        ItemStack stored = manager.getStoredDurabilityBook(multitool, toolKind);
+        if (isEmpty(stored)) {
+            return;
+        }
+        if (player.getInventory().firstEmpty() < 0) {
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
+            return;
+        }
+        player.getInventory().addItem(stored.clone());
+        manager.setStoredDurabilityBook(multitool, toolKind, null);
+        player.openInventory(manager.createMainMenu(player, multitool));
+    }
+
+    private void handleMainMenuTotemDurabilityClick(InventoryClickEvent event, Player player, ItemStack multitool) {
+        ItemStack cursor = event.getCursor();
+        if (!isEmpty(cursor)) {
+            if (!manager.isAllowedSelfUpgradeItem(2, cursor)) {
+                return;
+            }
+            manager.setStoredTotemDurabilityBook(multitool, cursor.clone());
+            event.getView().setCursor(null);
+            player.openInventory(manager.createMainMenu(player, multitool));
+            return;
+        }
+        ItemStack stored = manager.getStoredTotemDurabilityBook(multitool);
+        if (isEmpty(stored)) {
+            return;
+        }
+        if (player.getInventory().firstEmpty() < 0) {
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
+            return;
+        }
+        player.getInventory().addItem(stored.clone());
+        manager.setStoredTotemDurabilityBook(multitool, null);
+        player.openInventory(manager.createMainMenu(player, multitool));
     }
 }

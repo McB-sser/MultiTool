@@ -46,6 +46,20 @@ import org.bukkit.util.io.BukkitObjectOutputStream;
 
 public final class MultiToolManager {
     private static final Component MULTITOOL_NAME = Component.text("Multitool");
+    private static final int MAX_TOOL_SLOTS = 4;
+    private static final int[] MAIN_MENU_TOOL_SLOTS = {9, 10, 11, 12, 13, 14, 15, 16};
+    private static final ToolKind[] MAIN_MENU_TOOL_ORDER = {
+            ToolKind.PICKAXE,
+            ToolKind.AXE,
+            ToolKind.SHOVEL,
+            ToolKind.HOE,
+            ToolKind.ROD,
+            ToolKind.BOW,
+            ToolKind.SWORD,
+            ToolKind.SPEAR
+    };
+    private static final int[] MAIN_MENU_INFO_SLOTS = {0, 1, 2, 3, 4, 5, 6, 7, 8};
+    private static final int[] UPGRADE_STORAGE_SLOTS = {2, 3, 4, 5};
     private static final Set<Material> SHELF_MATERIALS = Set.of(
             Material.OAK_SHELF, Material.SPRUCE_SHELF, Material.BIRCH_SHELF,
             Material.JUNGLE_SHELF, Material.ACACIA_SHELF, Material.DARK_OAK_SHELF,
@@ -73,11 +87,15 @@ public final class MultiToolManager {
     private final NamespacedKey markerKey;
     private final NamespacedKey baseMaterialKey;
     private final NamespacedKey selectedToolKey;
+    private final NamespacedKey selectedToolSlotKey;
     private final NamespacedKey manualModeKey;
+    private final NamespacedKey storedDurabilityKey;
     private final NamespacedKey storedTotemKey;
     private final NamespacedKey storedBindingKey;
     private final NamespacedKey multitoolRecipeKey;
-    private final Map<ToolKind, NamespacedKey> toolKeys = new EnumMap<>(ToolKind.class);
+    private final Map<ToolKind, List<NamespacedKey>> toolKeys = new EnumMap<>(ToolKind.class);
+    private final Map<ToolKind, NamespacedKey> durabilityBookKeys = new EnumMap<>(ToolKind.class);
+    private final List<NamespacedKey> totemKeys = new ArrayList<>();
     private final Map<PreferenceTarget, NamespacedKey> preferenceKeys = new EnumMap<>(PreferenceTarget.class);
     private final Set<Material> spearMaterials;
     private final MultiToolSidebar sidebar;
@@ -87,14 +105,27 @@ public final class MultiToolManager {
         this.markerKey = new NamespacedKey(plugin, "multitool");
         this.baseMaterialKey = new NamespacedKey(plugin, "base_material");
         this.selectedToolKey = new NamespacedKey(plugin, "selected_tool");
+        this.selectedToolSlotKey = new NamespacedKey(plugin, "selected_tool_slot");
         this.manualModeKey = new NamespacedKey(plugin, "manual_mode");
+        this.storedDurabilityKey = new NamespacedKey(plugin, "stored_durability");
         this.storedTotemKey = new NamespacedKey(plugin, "stored_totem");
         this.storedBindingKey = new NamespacedKey(plugin, "stored_binding");
         this.multitoolRecipeKey = new NamespacedKey(plugin, "multitool");
         this.spearMaterials = resolveSpearMaterials();
         this.sidebar = new MultiToolSidebar(this);
+        this.totemKeys.add(new NamespacedKey(plugin, "stored_totem"));
+        for (int slot = 1; slot < MAX_TOOL_SLOTS; slot++) {
+            this.totemKeys.add(new NamespacedKey(plugin, "stored_totem_" + (slot + 1)));
+        }
         for (ToolKind toolKind : ToolKind.values()) {
-            toolKeys.put(toolKind, new NamespacedKey(plugin, "tool_" + toolKind.name().toLowerCase()));
+            List<NamespacedKey> keys = new ArrayList<>();
+            String prefix = "tool_" + toolKind.name().toLowerCase();
+            keys.add(new NamespacedKey(plugin, prefix));
+            for (int slot = 1; slot < MAX_TOOL_SLOTS; slot++) {
+                keys.add(new NamespacedKey(plugin, prefix + "_" + (slot + 1)));
+            }
+            toolKeys.put(toolKind, List.copyOf(keys));
+            durabilityBookKeys.put(toolKind, new NamespacedKey(plugin, "durability_" + toolKind.name().toLowerCase()));
         }
         for (PreferenceTarget target : PreferenceTarget.values()) {
             preferenceKeys.put(target, new NamespacedKey(plugin, "pref_" + target.name().toLowerCase()));
@@ -130,6 +161,7 @@ public final class MultiToolManager {
         meta.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
         meta.getPersistentDataContainer().set(baseMaterialKey, PersistentDataType.STRING, baseMaterial.name());
         meta.getPersistentDataContainer().set(selectedToolKey, PersistentDataType.STRING, "");
+        meta.getPersistentDataContainer().set(selectedToolSlotKey, PersistentDataType.INTEGER, 0);
         meta.getPersistentDataContainer().set(manualModeKey, PersistentDataType.BYTE, (byte) 0);
         item.setItemMeta(meta);
         return item;
@@ -160,22 +192,39 @@ public final class MultiToolManager {
     }
 
     public ItemStack getStoredTool(ItemStack multitool, ToolKind toolKind) {
-        if (!isMultitool(multitool)) {
+        return getStoredTool(multitool, toolKind, 0);
+    }
+
+    public ItemStack getStoredTool(ItemStack multitool, ToolKind toolKind, int slotIndex) {
+        if (!isMultitool(multitool) || slotIndex < 0 || slotIndex >= MAX_TOOL_SLOTS) {
             return null;
         }
-        String encoded = multitool.getItemMeta().getPersistentDataContainer().get(toolKeys.get(toolKind), PersistentDataType.STRING);
+        String encoded = multitool.getItemMeta().getPersistentDataContainer()
+                .get(toolKeys.get(toolKind).get(slotIndex), PersistentDataType.STRING);
         return encoded == null || encoded.isBlank() ? null : deserializeItem(encoded);
     }
 
+    public List<ItemStack> getStoredTools(ItemStack multitool, ToolKind toolKind) {
+        List<ItemStack> storedTools = new ArrayList<>(MAX_TOOL_SLOTS);
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            storedTools.add(getStoredTool(multitool, toolKind, slotIndex));
+        }
+        return storedTools;
+    }
+
     public void setStoredTool(ItemStack multitool, ToolKind toolKind, ItemStack tool) {
-        if (!isMultitool(multitool)) {
+        setStoredTool(multitool, toolKind, 0, tool);
+    }
+
+    public void setStoredTool(ItemStack multitool, ToolKind toolKind, int slotIndex, ItemStack tool) {
+        if (!isMultitool(multitool) || slotIndex < 0 || slotIndex >= MAX_TOOL_SLOTS) {
             return;
         }
         ItemMeta meta = multitool.getItemMeta();
         if (tool == null || tool.getType().isAir()) {
-            meta.getPersistentDataContainer().remove(toolKeys.get(toolKind));
+            meta.getPersistentDataContainer().remove(toolKeys.get(toolKind).get(slotIndex));
         } else {
-            meta.getPersistentDataContainer().set(toolKeys.get(toolKind), PersistentDataType.STRING, serializeItem(tool));
+            meta.getPersistentDataContainer().set(toolKeys.get(toolKind).get(slotIndex), PersistentDataType.STRING, serializeItem(tool));
         }
         multitool.setItemMeta(meta);
     }
@@ -187,16 +236,16 @@ public final class MultiToolManager {
                 Component.text("Multitool")
         );
         fillWithBlockedSlots(inventory);
-        inventory.setItem(13, createMenuDisplay(multitool));
-        inventory.setItem(10, createToolButton(multitool, ToolKind.AXE));
-        inventory.setItem(11, createToolButton(multitool, ToolKind.SHOVEL));
-        inventory.setItem(12, createToolButton(multitool, ToolKind.SPEAR));
-        inventory.setItem(14, createToolButton(multitool, ToolKind.ROD));
-        inventory.setItem(15, createToolButton(multitool, ToolKind.BOW));
-        inventory.setItem(16, createToolButton(multitool, ToolKind.SWORD));
-        inventory.setItem(18, createSettingsButton(multitool));
-        inventory.setItem(21, createToolButton(multitool, ToolKind.PICKAXE));
-        inventory.setItem(22, createToolButton(multitool, ToolKind.HOE));
+        inventory.setItem(18, createMenuDisplay(multitool));
+        inventory.setItem(26, createSettingsButton(multitool));
+        for (int i = 0; i < MAIN_MENU_TOOL_ORDER.length; i++) {
+            inventory.setItem(MAIN_MENU_INFO_SLOTS[i], createDurabilityBookButton(multitool, MAIN_MENU_TOOL_ORDER[i]));
+        }
+        for (int i = 0; i < MAIN_MENU_TOOL_ORDER.length; i++) {
+            inventory.setItem(MAIN_MENU_TOOL_SLOTS[i], createToolButton(multitool, MAIN_MENU_TOOL_ORDER[i]));
+        }
+        inventory.setItem(8, createTotemDurabilityBookButton(multitool));
+        inventory.setItem(17, createTotemButton(multitool));
         return inventory;
     }
 
@@ -222,14 +271,51 @@ public final class MultiToolManager {
         Inventory inventory = Bukkit.createInventory(
                 new MenuHolder(MenuHolder.MenuType.SELF_UPGRADE, player.getUniqueId(), player.getInventory().getHeldItemSlot(), null),
                 9,
-                Component.text("Multitool Upgrade")
+                Component.text("Haltbarkeits-Upgrade")
         );
         fillWithBlockedSlots(inventory);
         inventory.setItem(0, createBackButton());
-        inventory.setItem(2, createTotemInfo());
-        inventory.setItem(3, cloneOrNull(getStoredTotem(multitool)));
-        inventory.setItem(5, createBindingInfo());
-        inventory.setItem(6, cloneOrNull(getStoredBindingBook(multitool)));
+        inventory.setItem(1, createDurabilityInfo());
+        inventory.setItem(2, cloneOrNull(getStoredTotemDurabilityBook(multitool)));
+        inventory.setItem(7, createDurabilityMenuInfo(multitool));
+        inventory.setItem(8, createMenuDisplay(multitool));
+        return inventory;
+    }
+
+    public Inventory createTotemUpgradeMenu(Player player, ItemStack multitool) {
+        Inventory inventory = Bukkit.createInventory(
+                new MenuHolder(MenuHolder.MenuType.TOTEM_UPGRADE, player.getUniqueId(), player.getInventory().getHeldItemSlot(), null),
+                9,
+                Component.text("Totem Upgrade")
+        );
+        fillWithBlockedSlots(inventory);
+        inventory.setItem(0, createBackButton());
+        inventory.setItem(1, createTotemDurabilityBookButton(multitool));
+        int unlockedSlots = getUnlockedTotemSlots(multitool);
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            int inventorySlot = UPGRADE_STORAGE_SLOTS[slotIndex];
+            if (slotIndex < unlockedSlots) {
+                ItemStack stored = getStoredTotem(multitool, slotIndex);
+                inventory.setItem(inventorySlot, stored == null ? createAvailableToolSlotPane(slotIndex) : cloneOrNull(stored));
+            } else {
+                inventory.setItem(inventorySlot, createLockedToolSlotPane(slotIndex));
+            }
+        }
+        inventory.setItem(7, createTotemInfo());
+        inventory.setItem(8, createMenuDisplay(multitool));
+        return inventory;
+    }
+
+    public Inventory createShelfUpgradeMenu(Player player, ItemStack multitool) {
+        Inventory inventory = Bukkit.createInventory(
+                new MenuHolder(MenuHolder.MenuType.SHELF_UPGRADE, player.getUniqueId(), player.getInventory().getHeldItemSlot(), null),
+                9,
+                Component.text("Regal Upgrade")
+        );
+        fillWithBlockedSlots(inventory);
+        inventory.setItem(0, createBackButton());
+        inventory.setItem(1, createBindingBookButton(multitool));
+        inventory.setItem(7, createBindingInfo());
         inventory.setItem(8, createMenuDisplay(multitool));
         return inventory;
     }
@@ -237,13 +323,24 @@ public final class MultiToolManager {
     public Inventory createUpgradeMenu(Player player, ItemStack multitool, ToolKind toolKind) {
         Inventory inventory = Bukkit.createInventory(
                 new MenuHolder(MenuHolder.MenuType.UPGRADE, player.getUniqueId(), player.getInventory().getHeldItemSlot(), toolKind),
-                InventoryType.HOPPER,
+                9,
                 Component.text(toolKind.getDisplayName() + " Upgrade")
         );
         fillWithBlockedSlots(inventory);
         inventory.setItem(0, createBackButton());
-        inventory.setItem(2, createUpgradeInfo(toolKind));
-        inventory.setItem(4, cloneOrNull(getStoredTool(multitool, toolKind)));
+        inventory.setItem(1, createDurabilityBookButton(multitool, toolKind));
+        int unlockedSlots = getUnlockedToolSlots(multitool, toolKind);
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            int inventorySlot = UPGRADE_STORAGE_SLOTS[slotIndex];
+            if (slotIndex < unlockedSlots) {
+                ItemStack stored = getStoredTool(multitool, toolKind, slotIndex);
+                inventory.setItem(inventorySlot, stored == null ? createAvailableToolSlotPane(slotIndex) : cloneOrNull(stored));
+            } else {
+                inventory.setItem(inventorySlot, createLockedToolSlotPane(slotIndex));
+            }
+        }
+        inventory.setItem(7, createUpgradeToolIcon(toolKind));
+        inventory.setItem(8, createMenuDisplay(multitool));
         return inventory;
     }
 
@@ -264,18 +361,62 @@ public final class MultiToolManager {
     }
 
     public void saveUpgradeMenu(ItemStack multitool, ToolKind toolKind, Inventory inventory) {
-        ItemStack stored = inventory.getItem(4);
-        if (stored == null || stored.getType().isAir()) {
-            setStoredTool(multitool, toolKind, null);
-            return;
-        }
-        if (isAllowedUpgradeItem(toolKind, stored)) {
-            setStoredTool(multitool, toolKind, stored.clone());
+        int unlockedSlots = getUnlockedToolSlots(multitool, toolKind);
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            if (slotIndex >= unlockedSlots) {
+                continue;
+            }
+            ItemStack stored = inventory.getItem(UPGRADE_STORAGE_SLOTS[slotIndex]);
+            if (stored == null || stored.getType().isAir()) {
+                setStoredTool(multitool, toolKind, slotIndex, null);
+                continue;
+            }
+            if (isAllowedUpgradeItem(toolKind, stored)) {
+                setStoredTool(multitool, toolKind, slotIndex, stored.clone());
+            }
         }
     }
 
+    public ItemStack getStoredDurabilityBook(ItemStack multitool) {
+        return getStoredTotemDurabilityBook(multitool);
+    }
+
+    public void setStoredDurabilityBook(ItemStack multitool, ItemStack book) {
+        setStoredTotemDurabilityBook(multitool, book);
+    }
+
+    public ItemStack getStoredDurabilityBook(ItemStack multitool, ToolKind toolKind) {
+        return getStoredItem(multitool, durabilityBookKeys.get(toolKind));
+    }
+
+    public void setStoredDurabilityBook(ItemStack multitool, ToolKind toolKind, ItemStack book) {
+        setStoredItem(multitool, durabilityBookKeys.get(toolKind), cloneOrNull(book));
+    }
+
+    public ItemStack getStoredTotemDurabilityBook(ItemStack multitool) {
+        return getStoredItem(multitool, storedDurabilityKey);
+    }
+
+    public void setStoredTotemDurabilityBook(ItemStack multitool, ItemStack book) {
+        setStoredItem(multitool, storedDurabilityKey, cloneOrNull(book));
+    }
+
     public ItemStack getStoredTotem(ItemStack multitool) {
-        return getStoredItem(multitool, storedTotemKey);
+        return getStoredTotem(multitool, 0);
+    }
+
+    public ItemStack getStoredTotem(ItemStack multitool, int slotIndex) {
+        if (slotIndex < 0 || slotIndex >= MAX_TOOL_SLOTS) {
+            return null;
+        }
+        return getStoredItem(multitool, totemKeys.get(slotIndex));
+    }
+
+    public void setStoredTotem(ItemStack multitool, int slotIndex, ItemStack totem) {
+        if (slotIndex < 0 || slotIndex >= MAX_TOOL_SLOTS) {
+            return;
+        }
+        setStoredItem(multitool, totemKeys.get(slotIndex), cloneOrNull(totem));
     }
 
     public ItemStack getStoredBindingBook(ItemStack multitool) {
@@ -283,9 +424,29 @@ public final class MultiToolManager {
     }
 
     public void saveSelfUpgradeMenu(ItemStack multitool, Inventory inventory) {
-        ItemStack totem = inventory.getItem(3);
-        ItemStack binding = inventory.getItem(6);
-        setStoredItem(multitool, storedTotemKey, isAllowedSelfUpgradeItem(3, totem) ? cloneOrNull(totem) : null);
+        ItemStack durability = inventory.getItem(2);
+        setStoredTotemDurabilityBook(multitool, isAllowedSelfUpgradeItem(2, durability) ? cloneOrNull(durability) : null);
+    }
+
+    public void saveTotemUpgradeMenu(ItemStack multitool, Inventory inventory) {
+        int unlockedSlots = getUnlockedTotemSlots(multitool);
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            if (slotIndex >= unlockedSlots) {
+                continue;
+            }
+            ItemStack stored = inventory.getItem(UPGRADE_STORAGE_SLOTS[slotIndex]);
+            if (stored == null || stored.getType().isAir()) {
+                setStoredTotem(multitool, slotIndex, null);
+                continue;
+            }
+            if (stored.getType() == Material.TOTEM_OF_UNDYING) {
+                setStoredTotem(multitool, slotIndex, stored.clone());
+            }
+        }
+    }
+
+    public void saveShelfUpgradeMenu(ItemStack multitool, Inventory inventory) {
+        ItemStack binding = inventory.getItem(2);
         setStoredItem(multitool, storedBindingKey, isAllowedSelfUpgradeItem(6, binding) ? cloneOrNull(binding) : null);
     }
 
@@ -293,8 +454,8 @@ public final class MultiToolManager {
         if (item == null || item.getType().isAir()) {
             return true;
         }
-        if (slot == 3) {
-            return item.getType() == Material.TOTEM_OF_UNDYING;
+        if (slot == 2) {
+            return isDurabilityBook(item);
         }
         if (slot == 6) {
             return isBindingBook(item);
@@ -303,8 +464,13 @@ public final class MultiToolManager {
     }
 
     public boolean hasStoredTotem(ItemStack multitool) {
-        ItemStack totem = getStoredTotem(multitool);
-        return totem != null && !totem.getType().isAir();
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            ItemStack totem = getStoredTotem(multitool, slotIndex);
+            if (totem != null && !totem.getType().isAir()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean hasBindingUpgrade(ItemStack multitool) {
@@ -380,18 +546,21 @@ public final class MultiToolManager {
     }
 
     public boolean consumeStoredTotem(ItemStack multitool) {
-        ItemStack totem = getStoredTotem(multitool);
-        if (totem == null || totem.getType().isAir()) {
-            return false;
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            ItemStack totem = getStoredTotem(multitool, slotIndex);
+            if (totem == null || totem.getType().isAir()) {
+                continue;
+            }
+            if (totem.getAmount() <= 1) {
+                setStoredTotem(multitool, slotIndex, null);
+            } else {
+                ItemStack reduced = totem.clone();
+                reduced.setAmount(totem.getAmount() - 1);
+                setStoredTotem(multitool, slotIndex, reduced);
+            }
+            return true;
         }
-        if (totem.getAmount() <= 1) {
-            setStoredItem(multitool, storedTotemKey, null);
-        } else {
-            ItemStack reduced = totem.clone();
-            reduced.setAmount(totem.getAmount() - 1);
-            setStoredItem(multitool, storedTotemKey, reduced);
-        }
-        return true;
+        return false;
     }
 
     public void refreshHeldMultitool(Player player) {
@@ -433,16 +602,18 @@ public final class MultiToolManager {
         if (selected == null) {
             return;
         }
-        ItemStack stored = getStoredTool(itemInHand, selected);
+        int selectedSlot = getSelectedToolSlot(itemInHand);
+        ItemStack stored = getStoredTool(itemInHand, selected, selectedSlot);
         if (stored == null || !(stored.getItemMeta() instanceof Damageable storedMeta) || !(itemInHand.getItemMeta() instanceof Damageable handMeta)) {
             return;
         }
         int updatedDamage = handMeta.getDamage() + Math.max(damageAmount, 0);
         storedMeta.setDamage(updatedDamage);
         stored.setItemMeta((ItemMeta) storedMeta);
-        setStoredTool(itemInHand, selected, stored);
+        setStoredTool(itemInHand, selected, selectedSlot, stored);
         if (remainingDurability(stored) == 1) {
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 0.8F, 1.0F);
+            applySelectedDisplay(itemInHand, selected);
         }
     }
 
@@ -479,14 +650,30 @@ public final class MultiToolManager {
         }
     }
 
+    public int getSelectedToolSlot(ItemStack multitool) {
+        if (!isMultitool(multitool)) {
+            return 0;
+        }
+        Integer raw = multitool.getItemMeta().getPersistentDataContainer().get(selectedToolSlotKey, PersistentDataType.INTEGER);
+        if (raw == null || raw < 0 || raw >= MAX_TOOL_SLOTS) {
+            return 0;
+        }
+        return raw;
+    }
+
     private void applySelectedDisplay(ItemStack multitool, ToolKind desiredTool) {
         ItemMeta oldMeta = multitool.getItemMeta();
         PersistentDataContainer oldData = oldMeta.getPersistentDataContainer();
         Material base = getBaseMaterial(multitool);
-        ItemStack display = desiredTool == null ? new ItemStack(base) : cloneOrNull(getStoredTool(multitool, desiredTool));
+        int selectedSlot = 0;
+        ItemStack display = desiredTool == null ? new ItemStack(base) : cloneOrNull(getFirstUsableTool(multitool, desiredTool));
+        if (desiredTool != null) {
+            selectedSlot = findFirstUsableToolSlot(multitool, desiredTool);
+        }
         if (display == null || display.getType().isAir() || !isUsable(display)) {
             display = new ItemStack(base);
             desiredTool = null;
+            selectedSlot = 0;
         }
 
         multitool.setType(display.getType());
@@ -496,12 +683,15 @@ public final class MultiToolManager {
         displayMeta.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
         displayMeta.getPersistentDataContainer().set(baseMaterialKey, PersistentDataType.STRING, base.name());
         displayMeta.getPersistentDataContainer().set(selectedToolKey, PersistentDataType.STRING, desiredTool == null ? "" : desiredTool.name());
+        displayMeta.getPersistentDataContainer().set(selectedToolSlotKey, PersistentDataType.INTEGER, selectedSlot);
         for (ToolKind toolKind : ToolKind.values()) {
-            String encoded = oldData.get(toolKeys.get(toolKind), PersistentDataType.STRING);
-            if (encoded == null || encoded.isBlank()) {
-                displayMeta.getPersistentDataContainer().remove(toolKeys.get(toolKind));
-            } else {
-                displayMeta.getPersistentDataContainer().set(toolKeys.get(toolKind), PersistentDataType.STRING, encoded);
+            for (NamespacedKey key : toolKeys.get(toolKind)) {
+                String encoded = oldData.get(key, PersistentDataType.STRING);
+                if (encoded == null || encoded.isBlank()) {
+                    displayMeta.getPersistentDataContainer().remove(key);
+                } else {
+                    displayMeta.getPersistentDataContainer().set(key, PersistentDataType.STRING, encoded);
+                }
             }
         }
         for (PreferenceTarget target : PreferenceTarget.values()) {
@@ -509,7 +699,13 @@ public final class MultiToolManager {
         }
         Byte manualMode = oldData.get(manualModeKey, PersistentDataType.BYTE);
         displayMeta.getPersistentDataContainer().set(manualModeKey, PersistentDataType.BYTE, manualMode == null ? (byte) 0 : manualMode);
-        copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedTotemKey);
+        copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedDurabilityKey);
+        for (ToolKind toolKind : ToolKind.values()) {
+            copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), durabilityBookKeys.get(toolKind));
+        }
+        for (NamespacedKey key : totemKeys) {
+            copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), key);
+        }
         copyStoredValue(oldData, displayMeta.getPersistentDataContainer(), storedBindingKey);
         if (desiredTool == null && displayMeta.getEnchants().isEmpty()) {
             displayMeta.addEnchant(Enchantment.INFINITY, 1, true);
@@ -524,24 +720,79 @@ public final class MultiToolManager {
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text("Werkzeug-Slots"));
         for (ToolKind toolKind : ToolKind.values()) {
-            ItemStack stored = getStoredTool(multitool, toolKind);
-            lore.add(Component.text(toolKind.getDisplayName() + ": " + (stored == null ? "leer" : stored.getType().name())));
+            lore.add(Component.text(toolKind.getDisplayName() + ": " + countStoredTools(multitool, toolKind) + "/" + getUnlockedToolSlots(multitool) + " belegt"));
         }
         lore.add(Component.text("Totem: " + (hasStoredTotem(multitool) ? "gespeichert" : "leer")));
         lore.add(Component.text("Bindung: " + (hasBindingUpgrade(multitool) ? "aktiv" : "leer")));
         lore.add(Component.text("Klick in der Mitte für Regal-Upgrades"));
+        lore.add(Component.text("Haltbarkeit I-III schaltet bis zu 3 weitere Slots frei"));
+        lore.add(Component.text("Klick fuer Upgrade- und Regal-Slots"));
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
     }
 
     private ItemStack createToolButton(ItemStack multitool, ToolKind toolKind) {
-        ItemStack stored = getStoredTool(multitool, toolKind);
+        ItemStack stored = getFirstStoredTool(multitool, toolKind);
         ItemStack item = new ItemStack(stored == null ? getMenuMaterial(toolKind) : stored.getType());
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(toolKind.getDisplayName()));
         meta.lore(List.of(
-                Component.text(stored == null ? "Kein Werkzeug gespeichert" : "Gespeichert: " + stored.getType().name()),
+                Component.text("Belegt: " + countStoredTools(multitool, toolKind) + "/" + getUnlockedToolSlots(multitool, toolKind)),
+                Component.text(stored == null ? "Kein Werkzeug gespeichert" : "Erstes Werkzeug: " + stored.getType().name()),
+                Component.text("Klick zum Bearbeiten")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createDurabilityBookButton(ItemStack multitool, ToolKind toolKind) {
+        ItemStack stored = getStoredDurabilityBook(multitool, toolKind);
+        ItemStack item = stored == null ? new ItemStack(Material.PURPLE_STAINED_GLASS_PANE) : stored.clone();
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(toolKind.getDisplayName() + "-Buch"));
+        meta.lore(List.of(
+                Component.text(stored == null ? "Kein Haltbarkeitsbuch eingesetzt" : "Aktiv: Haltbarkeit " + getDurabilityBookLevel(stored)),
+                Component.text("Lege hier ein Haltbarkeitsbuch ab oder nimm es heraus."),
+                Component.text("Freie Slots: " + getUnlockedToolSlots(multitool, toolKind) + "/" + MAX_TOOL_SLOTS)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createTotemDurabilityBookButton(ItemStack multitool) {
+        ItemStack stored = getStoredTotemDurabilityBook(multitool);
+        ItemStack item = stored == null ? new ItemStack(Material.PURPLE_STAINED_GLASS_PANE) : stored.clone();
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Totem-Buch"));
+        meta.lore(List.of(
+                Component.text(stored == null ? "Kein Haltbarkeitsbuch eingesetzt" : "Aktiv: Haltbarkeit " + getDurabilityBookLevel(stored)),
+                Component.text("Lege hier ein Haltbarkeitsbuch ab oder nimm es heraus."),
+                Component.text("Freie Slots: " + getUnlockedTotemSlots(multitool) + "/" + MAX_TOOL_SLOTS)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createBindingBookButton(ItemStack multitool) {
+        ItemStack stored = getStoredBindingBook(multitool);
+        ItemStack item = stored == null ? new ItemStack(Material.PURPLE_STAINED_GLASS_PANE) : stored.clone();
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Bindungsbuch"));
+        meta.lore(List.of(
+                Component.text(stored == null ? "Kein Buch des Verschwindens eingesetzt" : "Buch des Verschwindens ist eingesetzt"),
+                Component.text("Lege hier ein Buch mit Fluch der Bindung ab oder nimm es heraus.")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createTotemButton(ItemStack multitool) {
+        ItemStack item = new ItemStack(Material.TOTEM_OF_UNDYING);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Totem"));
+        meta.lore(List.of(
+                Component.text("Belegt: " + countStoredTotems(multitool) + "/" + getUnlockedTotemSlots(multitool)),
                 Component.text("Klick zum Bearbeiten")
         ));
         item.setItemMeta(meta);
@@ -595,11 +846,62 @@ public final class MultiToolManager {
         return item;
     }
 
-    private ItemStack createUpgradeInfo(ToolKind toolKind) {
+    private ItemStack createUpgradeInfo(ToolKind toolKind, int unlockedSlots) {
+        ItemStack item = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(toolKind.getDisplayName() + "-Upgrade"));
+        meta.lore(List.of(
+                Component.text("Freie Slots: " + unlockedSlots + "/" + MAX_TOOL_SLOTS),
+                Component.text("Standardmaessig ist 1 Slot frei."),
+                Component.text("Haltbarkeit I-III schaltet pro Stufe 1 weiteren Slot frei."),
+                Component.text("Lege im Haltbarkeits-Upgrade ein Haltbarkeitsbuch ab, um Slots freizuschalten.")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createUpgradeToolIcon(ToolKind toolKind) {
         ItemStack item = new ItemStack(getMenuMaterial(toolKind));
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(toolKind.getDisplayName()));
-        meta.lore(List.of(Component.text("Slot rechts: Werkzeug einsetzen"), Component.text("Oder wieder herausnehmen")));
+        meta.lore(List.of(
+                Component.text("Lege Werkzeuge in die freien Slots links."),
+                Component.text("Verwendet werden die belegten Slots der Reihe nach.")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createSlotInfoPane(ItemStack multitool) {
+        ItemStack item = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Werkzeug-Slots"));
+        meta.lore(List.of(
+                Component.text("Standardmaessig ist 1 Slot frei."),
+                Component.text("Lege ein Haltbarkeitsbuch im Upgrade-Menue ab, um weitere Slots freizuschalten."),
+                Component.text("Haltbarkeit I-III schaltet bis zu 3 weitere Slots frei."),
+                Component.text("Insgesamt lassen sich bis zu 4 Werkzeuge pro Typ speichern."),
+                Component.text("Klicke hier, um das Haltbarkeits-Upgrade zu oeffnen."),
+                Component.text("Aktuell frei: " + getUnlockedToolSlots(multitool) + "/" + MAX_TOOL_SLOTS)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createLockedToolSlotPane(int slotIndex) {
+        ItemStack item = new ItemStack(Material.RED_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Slot " + (slotIndex + 1) + " gesperrt"));
+        meta.lore(List.of(Component.text("Schalte weitere Slots mit Haltbarkeit I-III frei.")));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createAvailableToolSlotPane(int slotIndex) {
+        ItemStack item = new ItemStack(Material.GREEN_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Slot " + (slotIndex + 1) + " frei"));
+        meta.lore(List.of(Component.text("Lege hier ein passendes Item ab.")));
         item.setItemMeta(meta);
         return item;
     }
@@ -607,10 +909,37 @@ public final class MultiToolManager {
     private ItemStack createTotemInfo() {
         ItemStack item = new ItemStack(Material.TOTEM_OF_UNDYING);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Totem-Slot"));
+        meta.displayName(Component.text("Totem-Slots"));
         meta.lore(List.of(
-                Component.text("Rechts daneben Totem einlegen"),
-                Component.text("Beim Tod wird es automatisch genutzt")
+                Component.text("Lege Totems in die freien Slots links."),
+                Component.text("Beim Tod werden die belegten Slots der Reihe nach genutzt.")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createDurabilityInfo() {
+        ItemStack item = new ItemStack(Material.ENCHANTED_BOOK);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Haltbarkeits-Upgrade"));
+        meta.lore(List.of(
+                Component.text("Lege ein Haltbarkeitsbuch in den Slot rechts."),
+                Component.text("Du kannst das Buch auch direkt auf dieses Feld legen."),
+                Component.text("Zum Entfernen wird das Buch in dein Inventar gelegt."),
+                Component.text("Haltbarkeit I-III schaltet 1 bis 3 Zusatzslots frei.")
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createDurabilityMenuInfo(ItemStack multitool) {
+        ItemStack item = new ItemStack(Material.PURPLE_STAINED_GLASS_PANE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Slot-Freischaltung"));
+        meta.lore(List.of(
+                Component.text("Lege rechts ein Haltbarkeitsbuch ab."),
+                Component.text("Aktuell frei: " + getUnlockedTotemSlots(multitool) + "/" + MAX_TOOL_SLOTS),
+                Component.text("Haltbarkeit I-III schaltet weitere Slots frei.")
         ));
         item.setItemMeta(meta);
         return item;
@@ -619,10 +948,10 @@ public final class MultiToolManager {
     private ItemStack createBindingInfo() {
         ItemStack item = new ItemStack(Material.ENCHANTED_BOOK);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Bindungsbuch-Slot"));
+        meta.displayName(Component.text("Regal-Bindung"));
         meta.lore(List.of(
-                Component.text("Rechts daneben Buch mit Fluch der Bindung"),
-                Component.text("Dann kann das Multitool nicht gedroppt oder abgelegt werden")
+                Component.text("Lege links ein Buch mit Fluch der Bindung ab."),
+                Component.text("Dann kann das Multitool nicht gedroppt oder abgelegt werden.")
         ));
         item.setItemMeta(meta);
         return item;
@@ -652,8 +981,8 @@ public final class MultiToolManager {
                 : "Wechselt automatisch zum passenden Werkzeug."));
         lore.add(Component.text("Ducken + Rechtsklick oeffnet das Menue."));
         lore.add(Component.text("Im Settings-Menue sind Ziel-Prioritaeten einstellbar."));
-        lore.add(Component.text("Werkzeuge koennen intern gespeichert werden."));
-        lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert."));
+        lore.add(Component.text("Pro Werkzeugtyp koennen bis zu 4 Werkzeuge intern gespeichert werden."));
+        lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert und uebersprungen."));
         lore.add(Component.text("Totem: " + (hasTotem ? "gespeichert" : "nicht gespeichert")));
         lore.add(Component.text("Bindung: " + (hasBinding ? "aktiv" : "nicht aktiv")));
         return lore;
@@ -821,7 +1150,90 @@ public final class MultiToolManager {
     }
 
     private boolean hasUsableTool(ItemStack multitool, ToolKind toolKind) {
-        return isUsable(getStoredTool(multitool, toolKind));
+        return findFirstUsableToolSlot(multitool, toolKind) >= 0;
+    }
+
+    public ItemStack getFirstStoredTool(ItemStack multitool, ToolKind toolKind) {
+        for (int slotIndex = 0; slotIndex < MAX_TOOL_SLOTS; slotIndex++) {
+            ItemStack stored = getStoredTool(multitool, toolKind, slotIndex);
+            if (stored != null && !stored.getType().isAir()) {
+                return stored;
+            }
+        }
+        return null;
+    }
+
+    public ItemStack getFirstUsableTool(ItemStack multitool, ToolKind toolKind) {
+        int slotIndex = findFirstUsableToolSlot(multitool, toolKind);
+        return slotIndex < 0 ? null : getStoredTool(multitool, toolKind, slotIndex);
+    }
+
+    private int findFirstUsableToolSlot(ItemStack multitool, ToolKind toolKind) {
+        int unlockedSlots = getUnlockedToolSlots(multitool);
+        for (int slotIndex = 0; slotIndex < unlockedSlots; slotIndex++) {
+            if (isUsable(getStoredTool(multitool, toolKind, slotIndex))) {
+                return slotIndex;
+            }
+        }
+        return -1;
+    }
+
+    public int getUnlockedToolSlots(ItemStack multitool) {
+        return getUnlockedTotemSlots(multitool);
+    }
+
+    public int getUnlockedToolSlots(ItemStack multitool, ToolKind toolKind) {
+        if (multitool == null || multitool.getType().isAir()) {
+            return 1;
+        }
+        int extraSlots = Math.max(0, getDurabilityBookLevel(getStoredDurabilityBook(multitool, toolKind)));
+        return Math.max(1, Math.min(MAX_TOOL_SLOTS, 1 + extraSlots));
+    }
+
+    public int getUnlockedTotemSlots(ItemStack multitool) {
+        if (multitool == null || multitool.getType().isAir()) {
+            return 1;
+        }
+        ItemStack book = getStoredTotemDurabilityBook(multitool);
+        int extraSlots = book == null ? 0 : Math.max(0, getDurabilityBookLevel(book));
+        return Math.max(1, Math.min(MAX_TOOL_SLOTS, 1 + extraSlots));
+    }
+
+    public boolean isUnlockedUpgradeSlot(ItemStack multitool, int rawSlot) {
+        return isUnlockedUpgradeSlot(multitool, null, rawSlot);
+    }
+
+    public boolean isUnlockedUpgradeSlot(ItemStack multitool, ToolKind toolKind, int rawSlot) {
+        for (int slotIndex = 0; slotIndex < UPGRADE_STORAGE_SLOTS.length; slotIndex++) {
+            if (UPGRADE_STORAGE_SLOTS[slotIndex] == rawSlot) {
+                return slotIndex < (toolKind == null ? getUnlockedTotemSlots(multitool) : getUnlockedToolSlots(multitool, toolKind));
+            }
+        }
+        return false;
+    }
+
+    private int countStoredTools(ItemStack multitool, ToolKind toolKind) {
+        int count = 0;
+        int unlockedSlots = getUnlockedToolSlots(multitool, toolKind);
+        for (int slotIndex = 0; slotIndex < unlockedSlots; slotIndex++) {
+            ItemStack stored = getStoredTool(multitool, toolKind, slotIndex);
+            if (stored != null && !stored.getType().isAir()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int countStoredTotems(ItemStack multitool) {
+        int count = 0;
+        int unlockedSlots = getUnlockedTotemSlots(multitool);
+        for (int slotIndex = 0; slotIndex < unlockedSlots; slotIndex++) {
+            ItemStack stored = getStoredTotem(multitool, slotIndex);
+            if (stored != null && !stored.getType().isAir()) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private boolean isUsable(ItemStack item) {
@@ -904,6 +1316,20 @@ public final class MultiToolManager {
             return meta.hasStoredEnchant(Enchantment.BINDING_CURSE);
         }
         return item.getEnchantments().containsKey(Enchantment.BINDING_CURSE);
+    }
+
+    private boolean isDurabilityBook(ItemStack item) {
+        return getDurabilityBookLevel(item) > 0;
+    }
+
+    private int getDurabilityBookLevel(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return 0;
+        }
+        if (item.getType() == Material.ENCHANTED_BOOK && item.getItemMeta() instanceof EnchantmentStorageMeta meta) {
+            return Math.min(3, Math.max(0, meta.getStoredEnchantLevel(Enchantment.UNBREAKING)));
+        }
+        return Math.min(3, Math.max(0, item.getEnchantmentLevel(Enchantment.UNBREAKING)));
     }
 
     private void copyStoredValue(PersistentDataContainer source, PersistentDataContainer target, NamespacedKey key) {

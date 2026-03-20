@@ -52,7 +52,10 @@ public final class MultiToolSidebar {
         int score = ToolKind.values().length;
         int index = 0;
         for (ToolKind toolKind : ToolKind.values()) {
-            ItemStack stored = manager.getStoredTool(multitool, toolKind);
+            ItemStack stored = manager.getFirstUsableTool(multitool, toolKind);
+            if (stored == null) {
+                stored = manager.getFirstStoredTool(multitool, toolKind);
+            }
             String entry = uniqueEntry(index++);
             Team team = getOrCreateTeam(scoreboard, "line" + index, entry);
             team.prefix(Component.text(buildLine(toolKind, stored, selected == toolKind)));
