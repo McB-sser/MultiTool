@@ -427,10 +427,21 @@ public final class MultiToolListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
+            ItemStack current = event.getInventory().getItem(rawSlot);
+            ItemStack cursor = event.getCursor();
+            if (manager.isAvailableUpgradeSlotPane(current) && cursor != null && !cursor.getType().isAir()) {
+                if (cursor.getType() != org.bukkit.Material.TOTEM_OF_UNDYING) {
+                    event.setCancelled(true);
+                    return;
+                }
+                event.setCancelled(true);
+                event.getInventory().setItem(rawSlot, cursor.clone());
+                event.getView().setCursor(null);
+                return;
+            }
             if (tryMoveTopItemToPlayerInventory(event, player, rawSlot)) {
                 return;
             }
-            ItemStack cursor = event.getCursor();
             if (cursor != null && !cursor.getType().isAir() && cursor.getType() != org.bukkit.Material.TOTEM_OF_UNDYING) {
                 event.setCancelled(true);
             }
@@ -496,10 +507,21 @@ public final class MultiToolListener implements Listener {
                 event.setCancelled(true);
                 return;
             }
+            ItemStack current = event.getInventory().getItem(rawSlot);
+            ItemStack cursor = event.getCursor();
+            if (manager.isAvailableUpgradeSlotPane(current) && cursor != null && !cursor.getType().isAir()) {
+                if (!manager.isAllowedUpgradeItem(holder.getToolKind(), cursor)) {
+                    event.setCancelled(true);
+                    return;
+                }
+                event.setCancelled(true);
+                event.getInventory().setItem(rawSlot, cursor.clone());
+                event.getView().setCursor(null);
+                return;
+            }
             if (tryMoveTopItemToPlayerInventory(event, player, rawSlot)) {
                 return;
             }
-            ItemStack cursor = event.getCursor();
             if (cursor != null && !cursor.getType().isAir() && !manager.isAllowedUpgradeItem(holder.getToolKind(), cursor)) {
                 event.setCancelled(true);
             }
@@ -623,7 +645,8 @@ public final class MultiToolListener implements Listener {
         }
         event.setCancelled(true);
         player.getInventory().addItem(current.clone());
-        event.getInventory().setItem(rawSlot, null);
+        ItemStack replacement = manager.createAvailableUpgradeSlotPane(rawSlot);
+        event.getInventory().setItem(rawSlot, replacement);
         return true;
     }
 

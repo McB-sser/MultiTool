@@ -898,12 +898,28 @@ public final class MultiToolManager {
     }
 
     private ItemStack createAvailableToolSlotPane(int slotIndex) {
-        ItemStack item = new ItemStack(Material.GREEN_STAINED_GLASS_PANE);
+        ItemStack item = new ItemStack(Material.LIME_STAINED_GLASS_PANE);
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("Slot " + (slotIndex + 1) + " frei"));
         meta.lore(List.of(Component.text("Lege hier ein passendes Item ab.")));
         item.setItemMeta(meta);
         return item;
+    }
+
+    public ItemStack createAvailableUpgradeSlotPane(int rawSlot) {
+        for (int slotIndex = 0; slotIndex < UPGRADE_STORAGE_SLOTS.length; slotIndex++) {
+            if (UPGRADE_STORAGE_SLOTS[slotIndex] == rawSlot) {
+                return createAvailableToolSlotPane(slotIndex);
+            }
+        }
+        return null;
+    }
+
+    public boolean isAvailableUpgradeSlotPane(ItemStack item) {
+        return item != null
+                && item.getType() == Material.LIME_STAINED_GLASS_PANE
+                && item.hasItemMeta()
+                && item.getItemMeta().displayName() != null;
     }
 
     private ItemStack createTotemInfo() {
