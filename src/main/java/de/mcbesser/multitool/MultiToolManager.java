@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
@@ -678,7 +679,7 @@ public final class MultiToolManager {
 
         multitool.setType(display.getType());
         ItemMeta displayMeta = display.getItemMeta();
-        displayMeta.displayName(MULTITOOL_NAME);
+        displayMeta.displayName(createActiveMultitoolName(desiredTool));
         displayMeta.lore(buildMultitoolLore(desiredTool, hasStoredTotem(multitool), hasBindingUpgrade(multitool), isManualMode(multitool)));
         displayMeta.getPersistentDataContainer().set(markerKey, PersistentDataType.BYTE, (byte) 1);
         displayMeta.getPersistentDataContainer().set(baseMaterialKey, PersistentDataType.STRING, base.name());
@@ -716,7 +717,7 @@ public final class MultiToolManager {
     private ItemStack createMenuDisplay(ItemStack multitool) {
         ItemStack item = new ItemStack(getBaseMaterial(multitool));
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(MULTITOOL_NAME);
+        meta.displayName(createActiveMultitoolName(getSelectedTool(multitool)));
         List<Component> lore = new ArrayList<>();
         lore.add(Component.text("Werkzeug-Slots"));
         for (ToolKind toolKind : ToolKind.values()) {
@@ -730,6 +731,10 @@ public final class MultiToolManager {
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
+    }
+
+    private Component createActiveMultitoolName(ToolKind activeTool) {
+        return Component.text("Multitool", activeTool == null ? NamedTextColor.GOLD : NamedTextColor.GREEN);
     }
 
     private ItemStack createToolButton(ItemStack multitool, ToolKind toolKind) {
@@ -990,7 +995,11 @@ public final class MultiToolManager {
 
     private List<Component> buildMultitoolLore(ToolKind activeTool, boolean hasTotem, boolean hasBinding, boolean manualMode) {
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(activeTool == null ? "Aktiv: Regal" : "Aktiv: " + activeTool.getDisplayName()));
+        if (activeTool == null) {
+            lore.add(Component.text("Aktiv: ", NamedTextColor.WHITE).append(Component.text("Regal", NamedTextColor.GOLD)));
+        } else {
+            lore.add(Component.text("Aktiv: ", NamedTextColor.WHITE).append(Component.text(activeTool.getDisplayName(), NamedTextColor.GREEN)));
+        }
         lore.add(Component.text("Modus: " + (manualMode ? "Manuell" : "Automatisch")));
         lore.add(Component.text(manualMode
                 ? "Middle-Click schaltet durch gespeicherte Werkzeuge."
