@@ -368,13 +368,11 @@ public final class MultiToolManager {
                 continue;
             }
             ItemStack stored = inventory.getItem(UPGRADE_STORAGE_SLOTS[slotIndex]);
-            if (stored == null || stored.getType().isAir()) {
+            if (stored == null || stored.getType().isAir() || isAvailableUpgradeSlotPane(stored) || !isAllowedUpgradeItem(toolKind, stored)) {
                 setStoredTool(multitool, toolKind, slotIndex, null);
                 continue;
             }
-            if (isAllowedUpgradeItem(toolKind, stored)) {
-                setStoredTool(multitool, toolKind, slotIndex, stored.clone());
-            }
+            setStoredTool(multitool, toolKind, slotIndex, stored.clone());
         }
     }
 
@@ -436,13 +434,11 @@ public final class MultiToolManager {
                 continue;
             }
             ItemStack stored = inventory.getItem(UPGRADE_STORAGE_SLOTS[slotIndex]);
-            if (stored == null || stored.getType().isAir()) {
+            if (stored == null || stored.getType().isAir() || isAvailableUpgradeSlotPane(stored) || stored.getType() != Material.TOTEM_OF_UNDYING) {
                 setStoredTotem(multitool, slotIndex, null);
                 continue;
             }
-            if (stored.getType() == Material.TOTEM_OF_UNDYING) {
-                setStoredTotem(multitool, slotIndex, stored.clone());
-            }
+            setStoredTotem(multitool, slotIndex, stored.clone());
         }
     }
 
@@ -725,7 +721,6 @@ public final class MultiToolManager {
         }
         lore.add(Component.text("Totem: " + (hasStoredTotem(multitool) ? "gespeichert" : "leer")));
         lore.add(Component.text("Bindung: " + (hasBindingUpgrade(multitool) ? "aktiv" : "leer")));
-        lore.add(Component.text("Klick in der Mitte für Regal-Upgrades"));
         lore.add(Component.text("Haltbarkeit I-III schaltet bis zu 3 weitere Slots frei"));
         lore.add(Component.text("Klick fuer Upgrade- und Regal-Slots"));
         meta.lore(lore);

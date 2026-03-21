@@ -27,6 +27,8 @@ import org.bukkit.event.player.PlayerMoveEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class MultiToolListener implements Listener {
     private final MultiToolManager manager;
@@ -684,17 +686,15 @@ public final class MultiToolListener implements Listener {
         if (isEmpty(stored)) {
             return false;
         }
-        if (player.getInventory().firstEmpty() < 0) {
-            event.setCancelled(true);
-            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
-            return true;
-        }
         event.setCancelled(true);
-        player.getInventory().addItem(stored.clone());
         if (holder.getType() == MenuHolder.MenuType.UPGRADE) {
-            manager.setStoredDurabilityBook(multitool, holder.getToolKind(), null);
+            if (!removeToolDurabilityBook(player, multitool, holder.getToolKind())) {
+                return true;
+            }
         } else {
-            manager.setStoredTotemDurabilityBook(multitool, null);
+            if (!removeTotemDurabilityBook(player, multitool)) {
+                return true;
+            }
         }
         reopenUpgradeMenu(player, multitool, holder);
         return true;
@@ -723,12 +723,9 @@ public final class MultiToolListener implements Listener {
         if (isEmpty(stored)) {
             return;
         }
-        if (player.getInventory().firstEmpty() < 0) {
-            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
+        if (!removeToolDurabilityBook(player, multitool, toolKind)) {
             return;
         }
-        player.getInventory().addItem(stored.clone());
-        manager.setStoredDurabilityBook(multitool, toolKind, null);
         player.openInventory(manager.createMainMenu(player, multitool));
     }
 
@@ -747,12 +744,108 @@ public final class MultiToolListener implements Listener {
         if (isEmpty(stored)) {
             return;
         }
-        if (player.getInventory().firstEmpty() < 0) {
-            player.sendActionBar(net.kyori.adventure.text.Component.text("Kein freier Platz im Inventar."));
+        if (!removeTotemDurabilityBook(player, multitool)) {
             return;
         }
-        player.getInventory().addItem(stored.clone());
-        manager.setStoredTotemDurabilityBook(multitool, null);
         player.openInventory(manager.createMainMenu(player, multitool));
+    }
+
+    private boolean removeToolDurabilityBook(Player player, ItemStack multitool, ToolKind toolKind) {
+        ItemStack storedBook = manager.getStoredDurabilityBook(multitool, toolKind);
+        if (isEmpty(storedBook)) {
+            return false;
+        }
+
+        List<ItemStack> itemsToReturn = new ArrayList<>();
+        itemsToReturn.add(storedBook.clone());
+        int unlockedSlots = manager.getUnlockedToolSlots(multitool, toolKind);
+        for (int slotIndex = 1; slotIndex < unlockedSlots; slotIndex++) {
+            ItemStack storedTool = manager.getStoredTool(multitool, toolKind, slotIndex);
+            if (!isEmpty(storedTool)) {
+                itemsToReturn.add(storedTool.clone());
+            }
+        }
+
+        if (!canFitAllItems(player.getInventory(), itemsToReturn)) {
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Nicht genug Platz im Inventar fuer Buch und gesperrte Werkzeuge."));
+            return false;
+        }
+
+        player.getInventory().addItem(itemsToReturn.toArray(new ItemStack[0]));
+        manager.setStoredDurabilityBook(multitool, toolKind, null);
+        for (int slotIndex = 1; slotIndex < unlockedSlots; slotIndex++) {
+            manager.setStoredTool(multitool, toolKind, slotIndex, null);
+        }
+        return true;
+    }
+
+    private boolean removeTotemDurabilityBook(Player player, ItemStack multitool) {
+        ItemStack storedBook = manager.getStoredTotemDurabilityBook(multitool);
+        if (isEmpty(storedBook)) {
+            return false;
+        }
+
+        List<ItemStack> itemsToReturn = new ArrayList<>();
+        itemsToReturn.add(storedBook.clone());
+        int unlockedSlots = manager.getUnlockedTotemSlots(multitool);
+        for (int slotIndex = 1; slotIndex < unlockedSlots; slotIndex++) {
+            ItemStack storedTotem = manager.getStoredTotem(multitool, slotIndex);
+            if (!isEmpty(storedTotem)) {
+                itemsToReturn.add(storedTotem.clone());
+            }
+        }
+
+        if (!canFitAllItems(player.getInventory(), itemsToReturn)) {
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Nicht genug Platz im Inventar fuer Buch und gesperrte Inhalte."));
+            return false;
+        }
+
+        player.getInventory().addItem(itemsToReturn.toArray(new ItemStack[0]));
+        manager.setStoredTotemDurabilityBook(multitool, null);
+        for (int slotIndex = 1; slotIndex < unlockedSlots; slotIndex++) {
+            manager.setStoredTotem(multitool, slotIndex, null);
+        }
+        return true;
+    }
+
+    private boolean canFitAllItems(Inventory inventory, List<ItemStack> items) {
+        ItemStack[] simulated = inventory.getStorageContents().clone();
+        for (ItemStack item : items) {
+            if (isEmpty(item)) {
+                continue;
+            }
+            int remaining = item.getAmount();
+            int maxStackSize = Math.min(item.getMaxStackSize(), item.getType().getMaxStackSize());
+
+            for (int slot = 0; slot < simulated.length && remaining > 0; slot++) {
+                ItemStack current = simulated[slot];
+                if (isEmpty(current) || !current.isSimilar(item)) {
+                    continue;
+                }
+                int space = maxStackSize - current.getAmount();
+                if (space <= 0) {
+                    continue;
+                }
+                int moved = Math.min(space, remaining);
+                current.setAmount(current.getAmount() + moved);
+                remaining -= moved;
+            }
+
+            for (int slot = 0; slot < simulated.length && remaining > 0; slot++) {
+                if (!isEmpty(simulated[slot])) {
+                    continue;
+                }
+                ItemStack placed = item.clone();
+                int moved = Math.min(maxStackSize, remaining);
+                placed.setAmount(moved);
+                simulated[slot] = placed;
+                remaining -= moved;
+            }
+
+            if (remaining > 0) {
+                return false;
+            }
+        }
+        return true;
     }
 }
