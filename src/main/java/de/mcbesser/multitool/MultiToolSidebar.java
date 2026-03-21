@@ -1,6 +1,7 @@
 package de.mcbesser.multitool;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -20,7 +21,7 @@ public final class MultiToolSidebar {
     private static final String OBJECTIVE_NAME = "multitool";
 
     private final MultiToolManager manager;
-    private final Map<UUID, Scoreboard> activeBoards = new HashMap<>();
+    private final Map<UUID, BoardState> activeBoards = new HashMap<>();
 
     public MultiToolSidebar(MultiToolManager manager) {
         this.manager = manager;
@@ -32,7 +33,8 @@ public final class MultiToolSidebar {
             return;
         }
 
-        Scoreboard scoreboard = activeBoards.computeIfAbsent(player.getUniqueId(), ignored -> createBoard(player));
+        BoardState boardState = activeBoards.computeIfAbsent(player.getUniqueId(), ignored -> new BoardState(createBoard()));
+        Scoreboard scoreboard = boardState.scoreboard();
         if (player.getScoreboard() != scoreboard) {
             player.setScoreboard(scoreboard);
         }
@@ -44,32 +46,32 @@ public final class MultiToolSidebar {
         }
         objective.displayName(Component.text("Multitool"));
 
-        for (String entry : scoreboard.getEntries()) {
-            scoreboard.resetScores(entry);
-        }
-
         ToolKind selected = manager.getSelectedTool(multitool);
-        int score = ToolKind.values().length;
-        int index = 0;
+        List<String> renderedLines = boardState.renderedLines();
         for (ToolKind toolKind : ToolKind.values()) {
             ItemStack stored = manager.getFirstUsableTool(multitool, toolKind);
             if (stored == null) {
                 stored = manager.getFirstStoredTool(multitool, toolKind);
             }
-            String entry = uniqueEntry(index++);
-            Team team = getOrCreateTeam(scoreboard, "line" + index, entry);
-            team.prefix(Component.text(buildLine(toolKind, stored, selected == toolKind)));
-            objective.getScore(entry).setScore(score--);
+            int lineIndex = toolKind.ordinal();
+            String line = buildLine(toolKind, stored, selected == toolKind);
+            String entry = uniqueEntry(lineIndex);
+            Team team = getOrCreateTeam(scoreboard, "line" + lineIndex, entry);
+            if (!line.equals(renderedLines.get(lineIndex))) {
+                team.prefix(Component.text(line));
+                renderedLines.set(lineIndex, line);
+            }
+            objective.getScore(entry).setScore(ToolKind.values().length - lineIndex);
         }
     }
 
     public void clear(Player player) {
         UUID uuid = player.getUniqueId();
-        Scoreboard active = activeBoards.remove(uuid);
+        BoardState active = activeBoards.remove(uuid);
         if (active == null) {
             return;
         }
-        if (player.getScoreboard() == active) {
+        if (player.getScoreboard() == active.scoreboard()) {
             player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
         }
     }
@@ -81,7 +83,7 @@ public final class MultiToolSidebar {
         activeBoards.clear();
     }
 
-    private Scoreboard createBoard(Player player) {
+    private Scoreboard createBoard() {
         return Bukkit.getScoreboardManager().getNewScoreboard();
     }
 
@@ -138,5 +140,15 @@ public final class MultiToolSidebar {
 
     private String uniqueEntry(int index) {
         return ChatColor.values()[index].toString();
+    }
+
+    private record BoardState(Scoreboard scoreboard, List<String> renderedLines) {
+        private BoardState(Scoreboard scoreboard) {
+            this(scoreboard, createRenderedLines());
+        }
+
+        private static List<String> createRenderedLines() {
+            return new java.util.ArrayList<>(java.util.Collections.nCopies(ToolKind.values().length, null));
+        }
     }
 }
