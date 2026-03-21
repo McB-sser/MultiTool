@@ -1,11 +1,15 @@
 package de.mcbesser.multitool;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.entity.Player;
@@ -19,6 +23,7 @@ import org.bukkit.scoreboard.Team;
 
 public final class MultiToolSidebar {
     private static final String OBJECTIVE_NAME = "multitool";
+    private static final int MAX_SLOTS = 4;
 
     private final MultiToolManager manager;
     private final Map<UUID, BoardState> activeBoards = new HashMap<>();
@@ -41,20 +46,20 @@ public final class MultiToolSidebar {
 
         Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
         if (objective == null) {
-            objective = scoreboard.registerNewObjective(OBJECTIVE_NAME, Criteria.DUMMY, Component.text("Multitool"));
+            objective = scoreboard.registerNewObjective(
+                    OBJECTIVE_NAME,
+                    Criteria.DUMMY,
+                    Component.text("Multitool", NamedTextColor.GOLD, TextDecoration.BOLD)
+            );
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
-        objective.displayName(Component.text("Multitool"));
+        objective.displayName(Component.text("Multitool", NamedTextColor.GOLD, TextDecoration.BOLD));
 
         ToolKind selected = manager.getSelectedTool(multitool);
         List<String> renderedLines = boardState.renderedLines();
         for (ToolKind toolKind : ToolKind.values()) {
-            ItemStack stored = manager.getFirstUsableTool(multitool, toolKind);
-            if (stored == null) {
-                stored = manager.getFirstStoredTool(multitool, toolKind);
-            }
             int lineIndex = toolKind.ordinal();
-            String line = buildLine(toolKind, stored, selected == toolKind);
+            String line = buildLine(multitool, toolKind, selected == toolKind);
             String entry = uniqueEntry(lineIndex);
             Team team = getOrCreateTeam(scoreboard, "line" + lineIndex, entry);
             if (!line.equals(renderedLines.get(lineIndex))) {
@@ -102,19 +107,69 @@ public final class MultiToolSidebar {
         return team;
     }
 
-    private String buildLine(ToolKind toolKind, ItemStack stored, boolean selected) {
+    private String buildLine(ItemStack multitool, ToolKind toolKind, boolean selected) {
         String marker = selected ? ChatColor.GOLD + ">" : ChatColor.DARK_GRAY + ">";
-        if (stored == null || stored.getType().isAir()) {
-            return marker + ChatColor.GRAY + toolKind.getDisplayName() + ": leer";
-        }
+        String slotSquares = buildSlotSquares(multitool, toolKind);
+        ItemStack displayTool = resolveDisplayTool(multitool, toolKind);
+        String durability = buildDurabilityDisplay(displayTool);
+        String durabilityValue = buildDurabilityValue(displayTool);
+        return marker
+                + ChatColor.GRAY + " "
+                + slotSquares
+                + ChatColor.GRAY + " "
+                + durability
+                + ChatColor.GRAY + " "
+                + marker
+                + ChatColor.WHITE + toolKind.getDisplayName()
+                + ChatColor.GRAY + " "
+                + durabilityValue;
+    }
 
-        int percent = durabilityPercent(stored);
-        String color = percent > 60 ? ChatColor.GREEN.toString() : percent > 25 ? ChatColor.YELLOW.toString() : ChatColor.RED.toString();
-        String bar = color + durabilityBar(percent) + ChatColor.GRAY + " " + percent + "%";
-        if (remainingDurability(stored) <= 1) {
-            bar = ChatColor.DARK_RED + "inaktiv";
+    private String buildSlotSquares(ItemStack multitool, ToolKind toolKind) {
+        int unlockedSlots = manager.getUnlockedToolSlots(multitool, toolKind);
+        StringBuilder squares = new StringBuilder();
+        for (int slotIndex = 0; slotIndex < MAX_SLOTS; slotIndex++) {
+            if (slotIndex >= unlockedSlots) {
+                squares.append(ChatColor.BLACK).append("▮");
+                continue;
+            }
+            ItemStack stored = manager.getStoredTool(multitool, toolKind, slotIndex);
+            if (stored == null || stored.getType().isAir()) {
+                squares.append(ChatColor.GRAY).append("▮");
+                continue;
+            }
+            if (remainingDurability(stored) <= 1) {
+                squares.append(ChatColor.RED).append("▮");
+                continue;
+            }
+            squares.append(ChatColor.GREEN).append("▮");
         }
-        return marker + ChatColor.WHITE + toolKind.getDisplayName() + ": " + bar;
+        return squares.toString();
+    }
+
+    private ItemStack resolveDisplayTool(ItemStack multitool, ToolKind toolKind) {
+        ItemStack usable = manager.getFirstUsableTool(multitool, toolKind);
+        if (usable != null && !usable.getType().isAir()) {
+            return usable;
+        }
+        return manager.getFirstStoredTool(multitool, toolKind);
+    }
+
+    private String buildDurabilityDisplay(ItemStack item) {
+        if (item == null || item.getType().isAir()) {
+            return ChatColor.DARK_GRAY + "[----------]";
+        }
+        if (remainingDurability(item) <= 1) {
+            return ChatColor.RED + "[----------]";
+        }
+        int percent = durabilityPercent(item);
+        String color = percent > 60 ? ChatColor.GREEN.toString() : percent > 25 ? ChatColor.YELLOW.toString() : ChatColor.RED.toString();
+        return color + durabilityBar(percent);
+    }
+
+    private String buildDurabilityValue(ItemStack item) {
+        int remaining = item == null || item.getType().isAir() ? 0 : Math.max(0, remainingDurability(item));
+        return ChatColor.GRAY + Integer.toString(remaining);
     }
 
     private int durabilityPercent(ItemStack item) {
@@ -135,7 +190,7 @@ public final class MultiToolSidebar {
 
     private String durabilityBar(int percent) {
         int filled = Math.max(0, Math.min(10, (int) Math.round(percent / 10.0D)));
-        return "[" + "|".repeat(filled) + ChatColor.DARK_GRAY + "|".repeat(10 - filled) + ChatColor.RESET + "]";
+        return "[" + "|".repeat(filled) + ChatColor.DARK_GRAY + "|".repeat(10 - filled) + "]";
     }
 
     private String uniqueEntry(int index) {
@@ -148,7 +203,7 @@ public final class MultiToolSidebar {
         }
 
         private static List<String> createRenderedLines() {
-            return new java.util.ArrayList<>(java.util.Collections.nCopies(ToolKind.values().length, null));
+            return new ArrayList<>(Collections.nCopies(ToolKind.values().length, null));
         }
     }
 }
