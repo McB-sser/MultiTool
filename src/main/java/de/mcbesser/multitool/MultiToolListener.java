@@ -224,9 +224,14 @@ public final class MultiToolListener implements Listener {
         if (!(event.getDamager() instanceof Player player)) {
             return;
         }
-        if (manager.isMultitool(player.getInventory().getItemInMainHand())) {
-            manager.refreshHeldMultitool(player);
+        ItemStack itemInHand = player.getInventory().getItemInMainHand();
+        if (!manager.isMultitool(itemInHand)) {
+            return;
         }
+        if (manager.getSelectedTool(itemInHand) == ToolKind.SPEAR) {
+            manager.syncDamageFromUse(player, itemInHand, 1);
+        }
+        manager.refreshHeldMultitool(player);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
