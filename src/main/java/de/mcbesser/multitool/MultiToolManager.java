@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
@@ -100,6 +101,7 @@ public final class MultiToolManager {
     private final Map<PreferenceTarget, NamespacedKey> preferenceKeys = new EnumMap<>(PreferenceTarget.class);
     private final Set<Material> spearMaterials;
     private final MultiToolSidebar sidebar;
+    private final Map<UUID, Integer> sidebarClearMisses = new java.util.HashMap<>();
 
     public MultiToolManager(MultiToolPlugin plugin) {
         this.plugin = plugin;
@@ -563,9 +565,14 @@ public final class MultiToolManager {
     public void refreshHeldMultitool(Player player) {
         ItemStack item = player.getInventory().getItemInMainHand();
         if (!isMultitool(item)) {
-            sidebar.clear(player);
+            int misses = sidebarClearMisses.getOrDefault(player.getUniqueId(), 0) + 1;
+            sidebarClearMisses.put(player.getUniqueId(), misses);
+            if (misses >= 3) {
+                sidebar.clear(player);
+            }
             return;
         }
+        sidebarClearMisses.remove(player.getUniqueId());
         ToolKind next;
         if (isManualMode(item)) {
             next = resolveCurrentOrFallback(item);
@@ -574,16 +581,20 @@ public final class MultiToolManager {
         } else {
             next = determineTool(player, item);
         }
-        applySelectedDisplay(item, next);
-        player.getInventory().setItemInMainHand(item);
+        if (getDisplayRefreshReason(item, next) != null) {
+            applySelectedDisplay(item, next);
+            player.getInventory().setItemInMainHand(item);
+        }
         sidebar.update(player, item);
     }
 
     public void clearSidebar(Player player) {
+        sidebarClearMisses.remove(player.getUniqueId());
         sidebar.clear(player);
     }
 
     public void clearAllSidebars() {
+        sidebarClearMisses.clear();
         sidebar.clearAll();
     }
 
@@ -1171,6 +1182,39 @@ public final class MultiToolManager {
 
     private boolean hasUsableTool(ItemStack multitool, ToolKind toolKind) {
         return findFirstUsableToolSlot(multitool, toolKind) >= 0;
+    }
+
+    private String getDisplayRefreshReason(ItemStack multitool, ToolKind desiredTool) {
+        ToolKind currentTool = getSelectedTool(multitool);
+        if (currentTool != desiredTool) {
+            return "selected-tool "
+                    + (currentTool == null ? "NONE" : currentTool.name())
+                    + " -> "
+                    + (desiredTool == null ? "NONE" : desiredTool.name());
+        }
+
+        int expectedSlot = desiredTool == null ? 0 : findFirstUsableToolSlot(multitool, desiredTool);
+        if (getSelectedToolSlot(multitool) != Math.max(expectedSlot, 0)) {
+            return "selected-slot " + getSelectedToolSlot(multitool) + " -> " + Math.max(expectedSlot, 0);
+        }
+
+        if (desiredTool == null) {
+            return multitool.getType() != getBaseMaterial(multitool) ? "base-material " + multitool.getType() + " -> " + getBaseMaterial(multitool) : null;
+        }
+
+        ItemStack expectedDisplay = getFirstUsableTool(multitool, desiredTool);
+        if (expectedDisplay == null || expectedDisplay.getType().isAir()) {
+            return "missing-display-tool";
+        }
+        if (multitool.getType() != expectedDisplay.getType()) {
+            return "display-type " + multitool.getType() + " -> " + expectedDisplay.getType();
+        }
+        if (!(multitool.getItemMeta() instanceof Damageable currentMeta) || !(expectedDisplay.getItemMeta() instanceof Damageable expectedMeta)) {
+            return null;
+        }
+        return currentMeta.getDamage() != expectedMeta.getDamage()
+                ? "display-damage " + currentMeta.getDamage() + " -> " + expectedMeta.getDamage()
+                : null;
     }
 
     public ItemStack getFirstStoredTool(ItemStack multitool, ToolKind toolKind) {

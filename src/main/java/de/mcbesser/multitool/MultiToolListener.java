@@ -24,6 +24,8 @@ import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryView;
 import org.bukkit.inventory.ItemStack;
@@ -198,6 +200,19 @@ public final class MultiToolListener implements Listener {
     public void onJoin(PlayerJoinEvent event) {
         manager.discoverRecipes(event.getPlayer());
         manager.refreshHeldMultitool(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onChangedWorld(PlayerChangedWorldEvent event) {
+        scheduleSidebarRecovery(event.getPlayer());
+    }
+
+    @EventHandler
+    public void onTeleport(PlayerTeleportEvent event) {
+        if (event.getTo() == null || event.getFrom().getWorld().equals(event.getTo().getWorld())) {
+            return;
+        }
+        scheduleSidebarRecovery(event.getPlayer());
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -852,5 +867,16 @@ public final class MultiToolListener implements Listener {
             }
         }
         return true;
+    }
+
+    private void scheduleSidebarRecovery(Player player) {
+        manager.refreshHeldMultitool(player);
+        for (long delay : new long[] {1L, 2L, 5L, 10L, 20L}) {
+            org.bukkit.Bukkit.getScheduler().runTaskLater(
+                    org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(MultiToolListener.class),
+                    () -> manager.refreshHeldMultitool(player),
+                    delay
+            );
+        }
     }
 }

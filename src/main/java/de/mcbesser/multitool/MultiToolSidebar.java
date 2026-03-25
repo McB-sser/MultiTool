@@ -38,10 +38,14 @@ public final class MultiToolSidebar {
             return;
         }
 
-        BoardState boardState = activeBoards.computeIfAbsent(player.getUniqueId(), ignored -> new BoardState(createBoard()));
-        Scoreboard scoreboard = boardState.scoreboard();
-        if (player.getScoreboard() != scoreboard) {
-            player.setScoreboard(scoreboard);
+        Scoreboard scoreboard = player.getScoreboard();
+        BoardState boardState = activeBoards.get(player.getUniqueId());
+        if (boardState == null || boardState.scoreboard() != scoreboard) {
+            if (boardState != null && boardState.scoreboard() != null) {
+                removeSidebar(boardState.scoreboard());
+            }
+            boardState = new BoardState(scoreboard);
+            activeBoards.put(player.getUniqueId(), boardState);
         }
 
         Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
@@ -51,23 +55,37 @@ public final class MultiToolSidebar {
                     Criteria.DUMMY,
                     Component.text("Multitool", NamedTextColor.GOLD, TextDecoration.BOLD)
             );
+        }
+        if (objective.getDisplaySlot() != DisplaySlot.SIDEBAR) {
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
         objective.displayName(Component.text("Multitool", NamedTextColor.GOLD, TextDecoration.BOLD));
 
         ToolKind selected = manager.getSelectedTool(multitool);
+        List<String> nextLines = new ArrayList<>(ToolKind.values().length);
+        for (ToolKind toolKind : ToolKind.values()) {
+            nextLines.add(buildLine(multitool, toolKind, selected == toolKind));
+        }
+
         List<String> renderedLines = boardState.renderedLines();
+        if (boardState.initialized() && renderedLines.equals(nextLines)) {
+            return;
+        }
+
         for (ToolKind toolKind : ToolKind.values()) {
             int lineIndex = toolKind.ordinal();
-            String line = buildLine(multitool, toolKind, selected == toolKind);
+            String line = nextLines.get(lineIndex);
             String entry = uniqueEntry(lineIndex);
             Team team = getOrCreateTeam(scoreboard, "line" + lineIndex, entry);
             if (!line.equals(renderedLines.get(lineIndex))) {
                 team.prefix(Component.text(line));
                 renderedLines.set(lineIndex, line);
             }
-            objective.getScore(entry).setScore(ToolKind.values().length - lineIndex);
+            if (!boardState.initialized()) {
+                objective.getScore(entry).setScore(ToolKind.values().length - lineIndex);
+            }
         }
+        boardState.markInitialized();
     }
 
     public void clear(Player player) {
@@ -76,8 +94,9 @@ public final class MultiToolSidebar {
         if (active == null) {
             return;
         }
-        if (player.getScoreboard() == active.scoreboard()) {
-            player.setScoreboard(Bukkit.getScoreboardManager().getMainScoreboard());
+        removeSidebar(active.scoreboard());
+        if (player.getScoreboard() != active.scoreboard()) {
+            removeSidebar(player.getScoreboard());
         }
     }
 
@@ -88,8 +107,20 @@ public final class MultiToolSidebar {
         activeBoards.clear();
     }
 
-    private Scoreboard createBoard() {
-        return Bukkit.getScoreboardManager().getNewScoreboard();
+    private void removeSidebar(Scoreboard scoreboard) {
+        if (scoreboard == null) {
+            return;
+        }
+        Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
+        if (objective != null) {
+            objective.unregister();
+        }
+        for (int lineIndex = 0; lineIndex < ToolKind.values().length; lineIndex++) {
+            Team team = scoreboard.getTeam("line" + lineIndex);
+            if (team != null) {
+                team.unregister();
+            }
+        }
     }
 
     private Team getOrCreateTeam(Scoreboard scoreboard, String name, String entry) {
@@ -197,13 +228,34 @@ public final class MultiToolSidebar {
         return ChatColor.values()[index].toString();
     }
 
-    private record BoardState(Scoreboard scoreboard, List<String> renderedLines) {
+    private static final class BoardState {
+        private final Scoreboard scoreboard;
+        private final List<String> renderedLines;
+        private boolean initialized;
+
         private BoardState(Scoreboard scoreboard) {
-            this(scoreboard, createRenderedLines());
+            this.scoreboard = scoreboard;
+            this.renderedLines = createRenderedLines();
         }
 
         private static List<String> createRenderedLines() {
             return new ArrayList<>(Collections.nCopies(ToolKind.values().length, null));
+        }
+
+        private Scoreboard scoreboard() {
+            return scoreboard;
+        }
+
+        private List<String> renderedLines() {
+            return renderedLines;
+        }
+
+        private boolean initialized() {
+            return initialized;
+        }
+
+        private void markInitialized() {
+            initialized = true;
         }
     }
 }

@@ -16,7 +16,7 @@ public final class MultiToolPlugin extends JavaPlugin {
         mcMMOHook.registerIfPresent();
         getServer().getOnlinePlayers().forEach(multiToolManager::discoverRecipes);
         this.sidebarTaskId = getServer().getScheduler().scheduleSyncRepeatingTask(this, () ->
-                getServer().getOnlinePlayers().forEach(multiToolManager::refreshHeldMultitool), 1L, 10L);
+                getServer().getOnlinePlayers().forEach(multiToolManager::refreshHeldMultitool), 1L, 1L);
     }
 
     @Override
