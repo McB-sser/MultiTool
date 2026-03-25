@@ -574,14 +574,24 @@ public final class MultiToolManager {
         }
         sidebarClearMisses.remove(player.getUniqueId());
         ToolKind next;
-        if (isManualMode(item)) {
+        ToolKind forcedByMcMMO = plugin.getMcMMOHook() == null ? null : plugin.getMcMMOHook().getActiveAbilityTool(player, item);
+        if (forcedByMcMMO != null) {
+            next = forcedByMcMMO;
+        } else if (isManualMode(item)) {
             next = resolveCurrentOrFallback(item);
         } else if (isSelectionLocked(player, item)) {
             next = resolveCurrentOrFallback(item);
         } else {
             next = determineTool(player, item);
         }
-        if (getDisplayRefreshReason(item, next) != null) {
+        String refreshReason = getDisplayRefreshReason(item, next);
+        boolean freezeForMcMMO = forcedByMcMMO != null
+                && getSelectedTool(item) == forcedByMcMMO
+                && refreshReason == null;
+        if (forcedByMcMMO != null && getSelectedTool(item) == forcedByMcMMO) {
+            freezeForMcMMO = true;
+        }
+        if (!freezeForMcMMO && refreshReason != null) {
             applySelectedDisplay(item, next);
             player.getInventory().setItemInMainHand(item);
         }
@@ -1182,6 +1192,10 @@ public final class MultiToolManager {
 
     private boolean hasUsableTool(ItemStack multitool, ToolKind toolKind) {
         return findFirstUsableToolSlot(multitool, toolKind) >= 0;
+    }
+
+    boolean hasUsableToolForMcMMO(ItemStack multitool, ToolKind toolKind) {
+        return hasUsableTool(multitool, toolKind);
     }
 
     private String getDisplayRefreshReason(ItemStack multitool, ToolKind desiredTool) {

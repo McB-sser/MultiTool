@@ -9,6 +9,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityResurrectEvent;
@@ -109,6 +111,28 @@ public final class MultiToolListener implements Listener {
         }
         event.setCancelled(true);
         manager.refreshHeldMultitool(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onBlockDamage(BlockDamageEvent event) {
+        ItemStack item = event.getPlayer().getInventory().getItemInMainHand();
+        if (!manager.isMultitool(item)) {
+            return;
+        }
+        manager.refreshHeldMultitool(event.getPlayer());
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onBlockBreak(BlockBreakEvent event) {
+        ItemStack item = event.getPlayer().getInventory().getItemInMainHand();
+        if (!manager.isMultitool(item)) {
+            return;
+        }
+        manager.refreshHeldMultitool(event.getPlayer());
+        MultiToolPlugin plugin = org.bukkit.plugin.java.JavaPlugin.getPlugin(MultiToolPlugin.class);
+        if (plugin.getMcMMOHook() != null) {
+            plugin.getMcMMOHook().handleBlockBreak(event.getPlayer(), item, event.getBlock());
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

@@ -33,4 +33,8 @@ public final class MultiToolPlugin extends JavaPlugin {
     public MultiToolManager getMultiToolManager() {
         return multiToolManager;
     }
+
+    public McMMOHook getMcMMOHook() {
+        return mcMMOHook;
+    }
 }
