@@ -38,14 +38,14 @@ public final class MultiToolSidebar {
             return;
         }
 
-        Scoreboard scoreboard = player.getScoreboard();
         BoardState boardState = activeBoards.get(player.getUniqueId());
-        if (boardState == null || boardState.scoreboard() != scoreboard) {
-            if (boardState != null && boardState.scoreboard() != null) {
-                removeSidebar(boardState.scoreboard());
-            }
-            boardState = new BoardState(scoreboard);
+        if (boardState == null) {
+            boardState = new BoardState(player.getScoreboard(), Bukkit.getScoreboardManager().getNewScoreboard());
             activeBoards.put(player.getUniqueId(), boardState);
+        }
+        Scoreboard scoreboard = boardState.scoreboard();
+        if (player.getScoreboard() != scoreboard) {
+            player.setScoreboard(scoreboard);
         }
 
         Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
@@ -95,8 +95,11 @@ public final class MultiToolSidebar {
             return;
         }
         removeSidebar(active.scoreboard());
-        if (player.getScoreboard() != active.scoreboard()) {
-            removeSidebar(player.getScoreboard());
+        if (player.getScoreboard() == active.scoreboard()) {
+            Scoreboard previous = active.previousScoreboard();
+            if (previous != null) {
+                player.setScoreboard(previous);
+            }
         }
     }
 
@@ -229,17 +232,23 @@ public final class MultiToolSidebar {
     }
 
     private static final class BoardState {
+        private final Scoreboard previousScoreboard;
         private final Scoreboard scoreboard;
         private final List<String> renderedLines;
         private boolean initialized;
 
-        private BoardState(Scoreboard scoreboard) {
+        private BoardState(Scoreboard previousScoreboard, Scoreboard scoreboard) {
+            this.previousScoreboard = previousScoreboard;
             this.scoreboard = scoreboard;
             this.renderedLines = createRenderedLines();
         }
 
         private static List<String> createRenderedLines() {
             return new ArrayList<>(Collections.nCopies(ToolKind.values().length, null));
+        }
+
+        private Scoreboard previousScoreboard() {
+            return previousScoreboard;
         }
 
         private Scoreboard scoreboard() {
