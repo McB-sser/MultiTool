@@ -26,6 +26,7 @@ import org.bukkit.event.player.PlayerItemDamageEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerMoveEvent;
+import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.Inventory;
@@ -69,16 +70,23 @@ public final class MultiToolListener implements Listener {
             return;
         }
 
-        boolean openMenu = player.isSneaking()
-                && (event.getAction() == Action.RIGHT_CLICK_AIR || event.getAction() == Action.RIGHT_CLICK_BLOCK);
-        if (openMenu) {
-            event.setCancelled(true);
-            event.setUseItemInHand(Result.DENY);
-            event.setUseInteractedBlock(Result.DENY);
-            player.openInventory(manager.createMainMenu(player, item));
+        manager.refreshHeldMultitool(player);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    public void onSwapHandItems(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (!manager.isMultitool(item)) {
             return;
         }
-        manager.refreshHeldMultitool(player);
+        if (!player.isSneaking()) {
+            manager.scheduleRefreshHeldMultitool(player);
+            return;
+        }
+
+        event.setCancelled(true);
+        player.openInventory(manager.createMainMenu(player, item));
     }
 
     @EventHandler(priority = EventPriority.LOWEST)
@@ -239,16 +247,6 @@ public final class MultiToolListener implements Listener {
         scheduleSidebarRecovery(event.getPlayer());
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onPickBlock(PlayerPickBlockEvent event) {
-        handleManualCycle(event.getPlayer(), event);
-    }
-
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onPickEntity(PlayerPickEntityEvent event) {
-        handleManualCycle(event.getPlayer(), event);
-    }
-
     @EventHandler(ignoreCancelled = true)
     public void onItemDamage(PlayerItemDamageEvent event) {
         if (!manager.isMultitool(event.getItem())) {
@@ -271,6 +269,16 @@ public final class MultiToolListener implements Listener {
             manager.syncDamageFromUse(player, itemInHand, 1);
         }
         manager.refreshHeldMultitool(player);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPickBlock(PlayerPickBlockEvent event) {
+        handleManualCycle(event.getPlayer(), event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onPickEntity(PlayerPickEntityEvent event) {
+        handleManualCycle(event.getPlayer(), event);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

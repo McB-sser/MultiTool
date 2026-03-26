@@ -74,7 +74,7 @@ Sobald das Multitool in der Haupthand liegt, beginnt die automatische Auswahl de
 
 ### 3. Hauptmenue oeffnen
 
-Mit `Ducken + Rechtsklick` wird das Hauptmenue des Multitools geoeffnet.
+Mit `Ducken + F` wird das Hauptmenue des Multitools geoeffnet.
 
 Im Menue:
 

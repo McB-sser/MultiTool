@@ -1020,7 +1020,7 @@ public final class MultiToolManager {
         lore.add(Component.text(manualMode
                 ? "Middle-Click schaltet durch gespeicherte Werkzeuge."
                 : "Wechselt automatisch zum passenden Werkzeug."));
-        lore.add(Component.text("Ducken + Rechtsklick oeffnet das Menue."));
+        lore.add(Component.text("Ducken + F oeffnet das Menue."));
         lore.add(Component.text("Im Settings-Menue sind Ziel-Prioritaeten einstellbar."));
         lore.add(Component.text("Pro Werkzeugtyp koennen bis zu 4 Werkzeuge intern gespeichert werden."));
         lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert und uebersprungen."));

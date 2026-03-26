@@ -48,7 +48,21 @@ public final class MultiToolSidebar {
             player.setScoreboard(scoreboard);
         }
 
+        ToolKind selected = manager.getSelectedTool(multitool);
+        List<String> nextLines = new ArrayList<>(ToolKind.values().length);
+        for (ToolKind toolKind : ToolKind.values()) {
+            nextLines.add(buildLine(multitool, toolKind, selected == toolKind));
+        }
+
+        List<String> renderedLines = boardState.renderedLines();
         Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
+        if (boardState.initialized()
+                && objective != null
+                && objective.getDisplaySlot() == DisplaySlot.SIDEBAR
+                && renderedLines.equals(nextLines)) {
+            return;
+        }
+
         if (objective == null) {
             objective = scoreboard.registerNewObjective(
                     OBJECTIVE_NAME,
@@ -60,17 +74,6 @@ public final class MultiToolSidebar {
             objective.setDisplaySlot(DisplaySlot.SIDEBAR);
         }
         objective.displayName(Component.text("Multitool", NamedTextColor.GOLD, TextDecoration.BOLD));
-
-        ToolKind selected = manager.getSelectedTool(multitool);
-        List<String> nextLines = new ArrayList<>(ToolKind.values().length);
-        for (ToolKind toolKind : ToolKind.values()) {
-            nextLines.add(buildLine(multitool, toolKind, selected == toolKind));
-        }
-
-        List<String> renderedLines = boardState.renderedLines();
-        if (boardState.initialized() && renderedLines.equals(nextLines)) {
-            return;
-        }
 
         for (ToolKind toolKind : ToolKind.values()) {
             int lineIndex = toolKind.ordinal();
