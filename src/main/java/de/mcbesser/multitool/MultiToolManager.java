@@ -41,6 +41,7 @@ import org.bukkit.inventory.meta.Damageable;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataContainer;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.event.block.Action;
 import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.BlockIterator;
 import org.bukkit.util.io.BukkitObjectInputStream;
@@ -84,6 +85,11 @@ public final class MultiToolManager {
             Material.GRINDSTONE,
             Material.SMITHING_TABLE
     );
+    private static final Map<Material, Material> AXE_STRIP_MAP = createAxeStripMap();
+    private static final Map<Material, Material> AXE_SCRAPE_MAP = createAxeScrapeMap();
+    private static final Map<Material, Material> AXE_UNWAX_MAP = createAxeUnwaxMap();
+    private static final Map<Material, Material> HOE_TILL_MAP = createHoeTillMap();
+    private static final Set<Material> SHOVEL_PATHABLE = createShovelPathable();
 
     private final MultiToolPlugin plugin;
     private final NamespacedKey markerKey;
@@ -639,6 +645,83 @@ public final class MultiToolManager {
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 0.8F, 1.0F);
             applySelectedDisplay(itemInHand, selected);
         }
+    }
+
+    public boolean applyVanillaRightClickBlockFallback(Player player, Block block, BlockFace blockFace, ItemStack multitool) {
+        if (player == null || block == null || !isMultitool(multitool) || blockFace == BlockFace.DOWN) {
+            return false;
+        }
+
+        Material type = block.getType();
+
+        Material stripped = AXE_STRIP_MAP.get(type);
+        if (stripped != null && hasUsableTool(multitool, ToolKind.AXE)) {
+            applySelectedDisplay(multitool, ToolKind.AXE);
+            player.getInventory().setItemInMainHand(multitool);
+            block.setType(stripped, true);
+            player.playSound(block.getLocation(), Sound.ITEM_AXE_STRIP, 1.0F, 1.0F);
+            syncDamageFromUse(player, multitool, 1);
+            refreshHeldMultitool(player);
+            return true;
+        }
+
+        Material unwaxed = AXE_UNWAX_MAP.get(type);
+        if (unwaxed != null && hasUsableTool(multitool, ToolKind.AXE)) {
+            applySelectedDisplay(multitool, ToolKind.AXE);
+            player.getInventory().setItemInMainHand(multitool);
+            block.setType(unwaxed, true);
+            player.playSound(block.getLocation(), Sound.ITEM_AXE_WAX_OFF, 1.0F, 1.0F);
+            syncDamageFromUse(player, multitool, 1);
+            refreshHeldMultitool(player);
+            return true;
+        }
+
+        Material scraped = AXE_SCRAPE_MAP.get(type);
+        if (scraped != null && hasUsableTool(multitool, ToolKind.AXE)) {
+            applySelectedDisplay(multitool, ToolKind.AXE);
+            player.getInventory().setItemInMainHand(multitool);
+            block.setType(scraped, true);
+            player.playSound(block.getLocation(), Sound.ITEM_AXE_SCRAPE, 1.0F, 1.0F);
+            syncDamageFromUse(player, multitool, 1);
+            refreshHeldMultitool(player);
+            return true;
+        }
+
+        if (SHOVEL_PATHABLE.contains(type)
+                && block.getRelative(BlockFace.UP).getType().isAir()
+                && hasUsableTool(multitool, ToolKind.SHOVEL)) {
+            applySelectedDisplay(multitool, ToolKind.SHOVEL);
+            player.getInventory().setItemInMainHand(multitool);
+            Material path = Material.matchMaterial("DIRT_PATH");
+            if (path != null) {
+                block.setType(path, true);
+                player.playSound(block.getLocation(), Sound.ITEM_SHOVEL_FLATTEN, 1.0F, 1.0F);
+                syncDamageFromUse(player, multitool, 1);
+                refreshHeldMultitool(player);
+                return true;
+            }
+        }
+
+        Material tilled = HOE_TILL_MAP.get(type);
+        if (tilled != null
+                && block.getRelative(BlockFace.UP).getType().isAir()
+                && hasUsableTool(multitool, ToolKind.HOE)) {
+            applySelectedDisplay(multitool, ToolKind.HOE);
+            player.getInventory().setItemInMainHand(multitool);
+            block.setType(tilled, true);
+            player.playSound(block.getLocation(), Sound.ITEM_HOE_TILL, 1.0F, 1.0F);
+            syncDamageFromUse(player, multitool, 1);
+            if (type == Material.ROOTED_DIRT) {
+                Material hangingRoots = Material.matchMaterial("HANGING_ROOTS");
+                if (hangingRoots != null) {
+                    block.getWorld().dropItemNaturally(block.getLocation().toCenterLocation(), new ItemStack(hangingRoots));
+                }
+            }
+            refreshHeldMultitool(player);
+            return true;
+        }
+
+        return false;
     }
 
     public boolean matchesMultitoolRecipe(ItemStack[] matrix) {
@@ -1368,6 +1451,96 @@ public final class MultiToolManager {
     }
 
     private void addMaterialIfPresent(Set<Material> materials, String name) {
+        Material material = Material.matchMaterial(name);
+        if (material != null) {
+            materials.add(material);
+        }
+    }
+
+    private static Map<Material, Material> createAxeStripMap() {
+        Map<Material, Material> map = new EnumMap<>(Material.class);
+        putIfPresent(map, "OAK_LOG", "STRIPPED_OAK_LOG");
+        putIfPresent(map, "SPRUCE_LOG", "STRIPPED_SPRUCE_LOG");
+        putIfPresent(map, "BIRCH_LOG", "STRIPPED_BIRCH_LOG");
+        putIfPresent(map, "JUNGLE_LOG", "STRIPPED_JUNGLE_LOG");
+        putIfPresent(map, "ACACIA_LOG", "STRIPPED_ACACIA_LOG");
+        putIfPresent(map, "DARK_OAK_LOG", "STRIPPED_DARK_OAK_LOG");
+        putIfPresent(map, "MANGROVE_LOG", "STRIPPED_MANGROVE_LOG");
+        putIfPresent(map, "CHERRY_LOG", "STRIPPED_CHERRY_LOG");
+        putIfPresent(map, "PALE_OAK_LOG", "STRIPPED_PALE_OAK_LOG");
+        putIfPresent(map, "BAMBOO_BLOCK", "STRIPPED_BAMBOO_BLOCK");
+        putIfPresent(map, "CRIMSON_STEM", "STRIPPED_CRIMSON_STEM");
+        putIfPresent(map, "WARPED_STEM", "STRIPPED_WARPED_STEM");
+        putIfPresent(map, "OAK_WOOD", "STRIPPED_OAK_WOOD");
+        putIfPresent(map, "SPRUCE_WOOD", "STRIPPED_SPRUCE_WOOD");
+        putIfPresent(map, "BIRCH_WOOD", "STRIPPED_BIRCH_WOOD");
+        putIfPresent(map, "JUNGLE_WOOD", "STRIPPED_JUNGLE_WOOD");
+        putIfPresent(map, "ACACIA_WOOD", "STRIPPED_ACACIA_WOOD");
+        putIfPresent(map, "DARK_OAK_WOOD", "STRIPPED_DARK_OAK_WOOD");
+        putIfPresent(map, "MANGROVE_WOOD", "STRIPPED_MANGROVE_WOOD");
+        putIfPresent(map, "CHERRY_WOOD", "STRIPPED_CHERRY_WOOD");
+        putIfPresent(map, "PALE_OAK_WOOD", "STRIPPED_PALE_OAK_WOOD");
+        putIfPresent(map, "CRIMSON_HYPHAE", "STRIPPED_CRIMSON_HYPHAE");
+        putIfPresent(map, "WARPED_HYPHAE", "STRIPPED_WARPED_HYPHAE");
+        return Map.copyOf(map);
+    }
+
+    private static void putIfPresent(Map<Material, Material> map, String sourceName, String targetName) {
+        Material source = Material.matchMaterial(sourceName);
+        Material target = Material.matchMaterial(targetName);
+        if (source != null && target != null) {
+            map.put(source, target);
+        }
+    }
+
+    private static Map<Material, Material> createAxeScrapeMap() {
+        Map<Material, Material> map = new EnumMap<>(Material.class);
+        for (Material material : Material.values()) {
+            String name = material.name();
+            if (name.startsWith("OXIDIZED_")) {
+                putIfPresent(map, name, name.replaceFirst("OXIDIZED_", "WEATHERED_"));
+            } else if (name.startsWith("WEATHERED_")) {
+                putIfPresent(map, name, name.replaceFirst("WEATHERED_", "EXPOSED_"));
+            } else if (name.startsWith("EXPOSED_")) {
+                putIfPresent(map, name, name.replaceFirst("EXPOSED_", ""));
+            }
+        }
+        return Map.copyOf(map);
+    }
+
+    private static Map<Material, Material> createAxeUnwaxMap() {
+        Map<Material, Material> map = new EnumMap<>(Material.class);
+        for (Material material : Material.values()) {
+            String name = material.name();
+            if (name.startsWith("WAXED_")) {
+                putIfPresent(map, name, name.substring("WAXED_".length()));
+            }
+        }
+        return Map.copyOf(map);
+    }
+
+    private static Map<Material, Material> createHoeTillMap() {
+        Map<Material, Material> map = new EnumMap<>(Material.class);
+        putIfPresent(map, "GRASS_BLOCK", "FARMLAND");
+        putIfPresent(map, "DIRT", "FARMLAND");
+        putIfPresent(map, "DIRT_PATH", "FARMLAND");
+        putIfPresent(map, "COARSE_DIRT", "DIRT");
+        putIfPresent(map, "ROOTED_DIRT", "DIRT");
+        return Map.copyOf(map);
+    }
+
+    private static Set<Material> createShovelPathable() {
+        Set<Material> set = new HashSet<>();
+        addStaticMaterialIfPresent(set, "GRASS_BLOCK");
+        addStaticMaterialIfPresent(set, "DIRT");
+        addStaticMaterialIfPresent(set, "PODZOL");
+        addStaticMaterialIfPresent(set, "COARSE_DIRT");
+        addStaticMaterialIfPresent(set, "MYCELIUM");
+        addStaticMaterialIfPresent(set, "ROOTED_DIRT");
+        return Set.copyOf(set);
+    }
+
+    private static void addStaticMaterialIfPresent(Set<Material> materials, String name) {
         Material material = Material.matchMaterial(name);
         if (material != null) {
             materials.add(material);

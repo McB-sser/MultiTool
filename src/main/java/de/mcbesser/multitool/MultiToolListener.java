@@ -58,7 +58,7 @@ public final class MultiToolListener implements Listener {
         }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.LOWEST)
     public void onInteract(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) {
             return;
@@ -71,6 +71,41 @@ public final class MultiToolListener implements Listener {
         }
 
         manager.refreshHeldMultitool(player);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onInteractMonitor(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND || event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        ItemStack item = player.getInventory().getItemInMainHand();
+        if (!manager.isMultitool(item) || event.getClickedBlock() == null) {
+            return;
+        }
+
+        org.bukkit.Location blockLocation = event.getClickedBlock().getLocation();
+        org.bukkit.Material originalType = event.getClickedBlock().getType();
+        org.bukkit.block.BlockFace blockFace = event.getBlockFace();
+        org.bukkit.Bukkit.getScheduler().runTask(
+                org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(MultiToolListener.class),
+                () -> {
+                    Player online = org.bukkit.Bukkit.getPlayer(player.getUniqueId());
+                    if (online == null) {
+                        return;
+                    }
+                    ItemStack current = online.getInventory().getItemInMainHand();
+                    if (!manager.isMultitool(current)) {
+                        return;
+                    }
+                    org.bukkit.block.Block block = blockLocation.getBlock();
+                    if (block.getType() != originalType) {
+                        return;
+                    }
+                    manager.applyVanillaRightClickBlockFallback(online, block, blockFace, current);
+                }
+        );
     }
 
     @EventHandler(priority = EventPriority.HIGHEST)
