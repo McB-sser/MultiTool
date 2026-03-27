@@ -902,13 +902,10 @@ public final class MultiToolListener implements Listener {
     }
 
     private void scheduleSidebarRecovery(Player player) {
-        manager.refreshHeldMultitool(player);
-        for (long delay : new long[] {1L, 2L, 5L, 10L, 20L}) {
-            org.bukkit.Bukkit.getScheduler().runTaskLater(
-                    org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(MultiToolListener.class),
-                    () -> manager.refreshHeldMultitool(player),
-                    delay
-            );
-        }
+        org.bukkit.Bukkit.getScheduler().runTaskLater(
+                org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(MultiToolListener.class),
+                () -> manager.refreshHeldMultitool(player),
+                2L
+        );
     }
 }

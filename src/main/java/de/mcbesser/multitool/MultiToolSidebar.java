@@ -38,13 +38,9 @@ public final class MultiToolSidebar {
             return;
         }
 
-        BoardState boardState = activeBoards.get(player.getUniqueId());
-        if (boardState == null) {
-            boardState = new BoardState(player.getScoreboard(), Bukkit.getScoreboardManager().getNewScoreboard());
-            activeBoards.put(player.getUniqueId(), boardState);
-        }
+        BoardState boardState = resolveBoardState(player);
         Scoreboard scoreboard = boardState.scoreboard();
-        if (player.getScoreboard() != scoreboard) {
+        if (boardState.ownedScoreboard() && player.getScoreboard() != scoreboard) {
             player.setScoreboard(scoreboard);
         }
 
@@ -98,7 +94,7 @@ public final class MultiToolSidebar {
             return;
         }
         removeSidebar(active.scoreboard());
-        if (player.getScoreboard() == active.scoreboard()) {
+        if (active.ownedScoreboard() && player.getScoreboard() == active.scoreboard()) {
             Scoreboard previous = active.previousScoreboard();
             if (previous != null) {
                 player.setScoreboard(previous);
@@ -127,6 +123,45 @@ public final class MultiToolSidebar {
                 team.unregister();
             }
         }
+    }
+
+    private BoardState resolveBoardState(Player player) {
+        UUID uuid = player.getUniqueId();
+        Scoreboard current = player.getScoreboard();
+        BoardState existing = activeBoards.get(uuid);
+        if (existing != null
+                && existing.scoreboard() == current
+                && (existing.ownedScoreboard() || !isSharedWithOtherPlayers(player, current))) {
+            return existing;
+        }
+
+        if (existing != null && existing.ownedScoreboard()) {
+            removeSidebar(existing.scoreboard());
+        }
+
+        BoardState next;
+        if (isSharedWithOtherPlayers(player, current)) {
+            next = new BoardState(current, Bukkit.getScoreboardManager().getNewScoreboard(), true);
+        } else {
+            next = new BoardState(null, current, false);
+        }
+        activeBoards.put(uuid, next);
+        return next;
+    }
+
+    private boolean isSharedWithOtherPlayers(Player player, Scoreboard scoreboard) {
+        if (scoreboard == null) {
+            return false;
+        }
+        for (Player other : Bukkit.getOnlinePlayers()) {
+            if (other.equals(player)) {
+                continue;
+            }
+            if (other.getScoreboard() == scoreboard) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Team getOrCreateTeam(Scoreboard scoreboard, String name, String entry) {
@@ -237,12 +272,14 @@ public final class MultiToolSidebar {
     private static final class BoardState {
         private final Scoreboard previousScoreboard;
         private final Scoreboard scoreboard;
+        private final boolean ownedScoreboard;
         private final List<String> renderedLines;
         private boolean initialized;
 
-        private BoardState(Scoreboard previousScoreboard, Scoreboard scoreboard) {
+        private BoardState(Scoreboard previousScoreboard, Scoreboard scoreboard, boolean ownedScoreboard) {
             this.previousScoreboard = previousScoreboard;
             this.scoreboard = scoreboard;
+            this.ownedScoreboard = ownedScoreboard;
             this.renderedLines = createRenderedLines();
         }
 
@@ -256,6 +293,10 @@ public final class MultiToolSidebar {
 
         private Scoreboard scoreboard() {
             return scoreboard;
+        }
+
+        private boolean ownedScoreboard() {
+            return ownedScoreboard;
         }
 
         private List<String> renderedLines() {
