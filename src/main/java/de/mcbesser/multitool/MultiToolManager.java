@@ -101,7 +101,6 @@ public final class MultiToolManager {
     private final Map<PreferenceTarget, NamespacedKey> preferenceKeys = new EnumMap<>(PreferenceTarget.class);
     private final Set<Material> spearMaterials;
     private final MultiToolSidebar sidebar;
-    private final Map<UUID, Integer> sidebarClearMisses = new java.util.HashMap<>();
 
     public MultiToolManager(MultiToolPlugin plugin) {
         this.plugin = plugin;
@@ -563,16 +562,19 @@ public final class MultiToolManager {
     }
 
     public void refreshHeldMultitool(Player player) {
+        refreshHeldMultitool(player, true);
+    }
+
+    public void refreshHeldMultitoolForMovement(Player player) {
+        refreshHeldMultitool(player, false);
+    }
+
+    private void refreshHeldMultitool(Player player, boolean refreshSidebarWhenUnchanged) {
         ItemStack item = player.getInventory().getItemInMainHand();
         if (!isMultitool(item)) {
-            int misses = sidebarClearMisses.getOrDefault(player.getUniqueId(), 0) + 1;
-            sidebarClearMisses.put(player.getUniqueId(), misses);
-            if (misses >= 3) {
-                sidebar.clear(player);
-            }
+            sidebar.clear(player);
             return;
         }
-        sidebarClearMisses.remove(player.getUniqueId());
         ToolKind next;
         ToolKind forcedByMcMMO = plugin.getMcMMOHook() == null ? null : plugin.getMcMMOHook().getActiveAbilityTool(player, item);
         if (forcedByMcMMO != null) {
@@ -591,20 +593,24 @@ public final class MultiToolManager {
         if (forcedByMcMMO != null && getSelectedTool(item) == forcedByMcMMO) {
             freezeForMcMMO = true;
         }
+        boolean displayChanged = false;
         if (!freezeForMcMMO && refreshReason != null) {
             applySelectedDisplay(item, next);
             player.getInventory().setItemInMainHand(item);
+            displayChanged = true;
         }
-        sidebar.update(player, item);
+        if (displayChanged || refreshSidebarWhenUnchanged) {
+            sidebar.update(player, item);
+        } else {
+            sidebar.ensureVisible(player, item);
+        }
     }
 
     public void clearSidebar(Player player) {
-        sidebarClearMisses.remove(player.getUniqueId());
         sidebar.clear(player);
     }
 
     public void clearAllSidebars() {
-        sidebarClearMisses.clear();
         sidebar.clearAll();
     }
 

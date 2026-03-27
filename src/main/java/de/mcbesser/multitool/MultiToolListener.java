@@ -220,7 +220,7 @@ public final class MultiToolListener implements Listener {
                 && event.getFrom().getBlockZ() == event.getTo().getBlockZ()) {
             return;
         }
-        manager.refreshHeldMultitool(event.getPlayer());
+        manager.refreshHeldMultitoolForMovement(event.getPlayer());
     }
 
     @EventHandler
