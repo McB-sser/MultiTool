@@ -178,8 +178,10 @@ public final class MultiToolSidebar {
         String marker = selected ? ChatColor.GOLD + ">" : ChatColor.DARK_GRAY + ">";
         String slotSquares = buildSlotSquares(multitool, toolKind);
         ItemStack displayTool = resolveDisplayTool(multitool, toolKind);
+        boolean validTool = displayTool != null && !displayTool.getType().isAir() && remainingDurability(displayTool) > 1;
         String durability = buildDurabilityDisplay(displayTool);
         String durabilityValue = buildDurabilityValue(displayTool);
+        String toolNameColor = validTool ? ChatColor.WHITE.toString() : ChatColor.RED.toString();
         return marker
                 + ChatColor.GRAY + " "
                 + slotSquares
@@ -187,8 +189,7 @@ public final class MultiToolSidebar {
                 + durability
                 + ChatColor.GRAY + " "
                 + marker
-                + ChatColor.WHITE + toolKind.getDisplayName()
-                + ChatColor.GRAY + " "
+                + toolNameColor + toolKind.getDisplayName()
                 + durabilityValue;
     }
 
@@ -197,19 +198,19 @@ public final class MultiToolSidebar {
         StringBuilder squares = new StringBuilder();
         for (int slotIndex = 0; slotIndex < MAX_SLOTS; slotIndex++) {
             if (slotIndex >= unlockedSlots) {
-                squares.append(ChatColor.BLACK).append("▮");
+                squares.append(ChatColor.BLACK).append("\u25ae");
                 continue;
             }
             ItemStack stored = manager.getStoredTool(multitool, toolKind, slotIndex);
             if (stored == null || stored.getType().isAir()) {
-                squares.append(ChatColor.GRAY).append("▮");
+                squares.append(ChatColor.GRAY).append("\u25ae");
                 continue;
             }
             if (remainingDurability(stored) <= 1) {
-                squares.append(ChatColor.RED).append("▮");
+                squares.append(ChatColor.RED).append("\u25ae");
                 continue;
             }
-            squares.append(ChatColor.GREEN).append("▮");
+            squares.append(ChatColor.GREEN).append("\u25ae");
         }
         return squares.toString();
     }
@@ -224,10 +225,10 @@ public final class MultiToolSidebar {
 
     private String buildDurabilityDisplay(ItemStack item) {
         if (item == null || item.getType().isAir()) {
-            return ChatColor.DARK_GRAY + "[----------]";
+            return ChatColor.DARK_GRAY + durabilityBar(0);
         }
         if (remainingDurability(item) <= 1) {
-            return ChatColor.RED + "[----------]";
+            return ChatColor.DARK_GRAY + durabilityBar(0);
         }
         int percent = durabilityPercent(item);
         String color = percent > 60 ? ChatColor.GREEN.toString() : percent > 25 ? ChatColor.YELLOW.toString() : ChatColor.RED.toString();
@@ -235,8 +236,11 @@ public final class MultiToolSidebar {
     }
 
     private String buildDurabilityValue(ItemStack item) {
+        if (item == null || item.getType().isAir() || remainingDurability(item) <= 1) {
+            return "";
+        }
         int remaining = item == null || item.getType().isAir() ? 0 : Math.max(0, remainingDurability(item));
-        return ChatColor.GRAY + Integer.toString(remaining);
+        return ChatColor.GRAY + " " + remaining;
     }
 
     private int durabilityPercent(ItemStack item) {

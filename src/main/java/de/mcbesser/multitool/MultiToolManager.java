@@ -66,7 +66,7 @@ public final class MultiToolManager {
     private static final Set<Material> SHELF_MATERIALS = Set.of(
             Material.OAK_SHELF, Material.SPRUCE_SHELF, Material.BIRCH_SHELF,
             Material.JUNGLE_SHELF, Material.ACACIA_SHELF, Material.DARK_OAK_SHELF,
-            Material.MANGROVE_SHELF, Material.CHERRY_SHELF, Material.BAMBOO_SHELF,
+            Material.MANGROVE_SHELF, Material.CHERRY_SHELF, Material.PALE_OAK_SHELF, Material.BAMBOO_SHELF,
             Material.CRIMSON_SHELF, Material.WARPED_SHELF
     );
     private static final Set<Material> HOE_PREFERRED = Set.of(
@@ -653,9 +653,12 @@ public final class MultiToolManager {
         }
 
         Material type = block.getType();
+        ToolKind manualSelection = isManualMode(multitool) ? getSelectedTool(multitool) : null;
 
         Material stripped = AXE_STRIP_MAP.get(type);
-        if (stripped != null && hasUsableTool(multitool, ToolKind.AXE)) {
+        if ((manualSelection == null || manualSelection == ToolKind.AXE)
+                && stripped != null
+                && hasUsableTool(multitool, ToolKind.AXE)) {
             applySelectedDisplay(multitool, ToolKind.AXE);
             player.getInventory().setItemInMainHand(multitool);
             block.setType(stripped, true);
@@ -666,7 +669,9 @@ public final class MultiToolManager {
         }
 
         Material unwaxed = AXE_UNWAX_MAP.get(type);
-        if (unwaxed != null && hasUsableTool(multitool, ToolKind.AXE)) {
+        if ((manualSelection == null || manualSelection == ToolKind.AXE)
+                && unwaxed != null
+                && hasUsableTool(multitool, ToolKind.AXE)) {
             applySelectedDisplay(multitool, ToolKind.AXE);
             player.getInventory().setItemInMainHand(multitool);
             block.setType(unwaxed, true);
@@ -677,7 +682,9 @@ public final class MultiToolManager {
         }
 
         Material scraped = AXE_SCRAPE_MAP.get(type);
-        if (scraped != null && hasUsableTool(multitool, ToolKind.AXE)) {
+        if ((manualSelection == null || manualSelection == ToolKind.AXE)
+                && scraped != null
+                && hasUsableTool(multitool, ToolKind.AXE)) {
             applySelectedDisplay(multitool, ToolKind.AXE);
             player.getInventory().setItemInMainHand(multitool);
             block.setType(scraped, true);
@@ -687,7 +694,8 @@ public final class MultiToolManager {
             return true;
         }
 
-        if (SHOVEL_PATHABLE.contains(type)
+        if ((manualSelection == null || manualSelection == ToolKind.SHOVEL)
+                && SHOVEL_PATHABLE.contains(type)
                 && block.getRelative(BlockFace.UP).getType().isAir()
                 && hasUsableTool(multitool, ToolKind.SHOVEL)) {
             applySelectedDisplay(multitool, ToolKind.SHOVEL);
@@ -703,7 +711,8 @@ public final class MultiToolManager {
         }
 
         Material tilled = HOE_TILL_MAP.get(type);
-        if (tilled != null
+        if ((manualSelection == null || manualSelection == ToolKind.HOE)
+                && tilled != null
                 && block.getRelative(BlockFace.UP).getType().isAir()
                 && hasUsableTool(multitool, ToolKind.HOE)) {
             applySelectedDisplay(multitool, ToolKind.HOE);
