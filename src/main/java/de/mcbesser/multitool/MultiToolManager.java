@@ -14,6 +14,7 @@ import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
@@ -1256,6 +1257,23 @@ public final class MultiToolManager {
     }
 
     private Block getRelevantTargetBlock(Player player) {
+        RayTraceResult fluidTrace = player.getWorld().rayTraceBlocks(
+                player.getEyeLocation(),
+                player.getEyeLocation().getDirection(),
+                6.0D,
+                FluidCollisionMode.ALWAYS,
+                false
+        );
+        if (fluidTrace != null && fluidTrace.getHitBlock() != null) {
+            Block fluidBlock = fluidTrace.getHitBlock();
+            if (isWaterBlock(fluidBlock.getType())) {
+                return fluidBlock;
+            }
+            if (fluidBlock.getBlockData() instanceof Waterlogged waterlogged && waterlogged.isWaterlogged()) {
+                return fluidBlock;
+            }
+        }
+
         Block block = player.getTargetBlockExact(6);
         if (block == null) {
             return null;
