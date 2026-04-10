@@ -1,4 +1,4 @@
-package de.mcbesser.multitool;
+﻿package de.mcbesser.multitool;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
@@ -58,7 +58,7 @@ public final class McMMOHook {
         this.abilityApiAvailable = resolveAbilityApi();
         resolveManagerMethods();
         if (registeredRepair || registeredSalvage || abilityApiAvailable) {
-            plugin.getLogger().info("mcMMO hooks fuer Repair/Salvage aktiviert.");
+            plugin.getLogger().info("mcMMO hooks f\u00fcr Repair/Salvage aktiviert.");
         } else {
             plugin.getLogger().warning("mcMMO erkannt, aber keine passenden Repair/Salvage-Events gefunden.");
         }
@@ -151,7 +151,7 @@ public final class McMMOHook {
 
         cancellable.setCancelled(true);
         player.sendActionBar(Component.text(
-                "mcMMO Repair/Salvage ist fuer das Multitool blockiert. Nimm das Werkzeug vorher heraus."
+                "mcMMO Repair/Salvage ist f\u00fcr das Multitool blockiert. Nimm das Werkzeug vorher heraus."
         ));
     }
 

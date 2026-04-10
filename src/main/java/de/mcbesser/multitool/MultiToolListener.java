@@ -1,4 +1,4 @@
-package de.mcbesser.multitool;
+﻿package de.mcbesser.multitool;
 
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
 import io.papermc.paper.event.player.PlayerPickEntityEvent;
@@ -854,7 +854,7 @@ public final class MultiToolListener implements Listener {
         }
 
         if (!canFitAllItems(player.getInventory(), itemsToReturn)) {
-            player.sendActionBar(net.kyori.adventure.text.Component.text("Nicht genug Platz im Inventar fuer Buch und gesperrte Werkzeuge."));
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Nicht genug Platz im Inventar f\u00fcr Buch und gesperrte Werkzeuge."));
             return false;
         }
 
@@ -883,7 +883,7 @@ public final class MultiToolListener implements Listener {
         }
 
         if (!canFitAllItems(player.getInventory(), itemsToReturn)) {
-            player.sendActionBar(net.kyori.adventure.text.Component.text("Nicht genug Platz im Inventar fuer Buch und gesperrte Inhalte."));
+            player.sendActionBar(net.kyori.adventure.text.Component.text("Nicht genug Platz im Inventar f\u00fcr Buch und gesperrte Inhalte."));
             return false;
         }
 

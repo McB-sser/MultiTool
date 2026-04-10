@@ -1,4 +1,4 @@
-name: MultiTool
+﻿name: MultiTool
 version: 1.0.0
 main: de.mcbesser.multitool.MultiToolPlugin
 api-version: '1.21'

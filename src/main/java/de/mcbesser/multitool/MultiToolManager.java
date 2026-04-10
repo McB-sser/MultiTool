@@ -1,4 +1,4 @@
-package de.mcbesser.multitool;
+﻿package de.mcbesser.multitool;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -842,7 +842,7 @@ public final class MultiToolManager {
         lore.add(Component.text("Totem: " + (hasStoredTotem(multitool) ? "gespeichert" : "leer")));
         lore.add(Component.text("Bindung: " + (hasBindingUpgrade(multitool) ? "aktiv" : "leer")));
         lore.add(Component.text("Haltbarkeit I-III schaltet bis zu 3 weitere Slots frei"));
-        lore.add(Component.text("Klick fuer Upgrade- und Regal-Slots"));
+        lore.add(Component.text("Klick f\u00fcr Upgrade- und Regal-Slots"));
         meta.lore(lore);
         item.setItemMeta(meta);
         return item;
@@ -924,7 +924,7 @@ public final class MultiToolManager {
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("Auto-Auswahl Settings"));
         meta.lore(List.of(
-                Component.text("Klick zum Oeffnen"),
+                Component.text("Klick zum \u00d6ffnen"),
                 Component.text("Lege fest, welches Tool bei Mobs bevorzugt wird")
         ));
         item.setItemMeta(meta);
@@ -938,9 +938,9 @@ public final class MultiToolManager {
         meta.displayName(Component.text(target.getDisplayName()));
         meta.lore(List.of(
                 Component.text("Aktuell: " + current.getDisplayName()),
-                Component.text("Linksklick: naechstes Tool"),
+                Component.text("Linksklick: n\u00e4chstes Tool"),
                 Component.text("Rechtsklick: vorheriges Tool"),
-                Component.text("Moeglich: " + joinToolNames(target.getAllowedTools()))
+                Component.text("M\u00f6glich: " + joinToolNames(target.getAllowedTools()))
         ));
         item.setItemMeta(meta);
         return item;
@@ -951,7 +951,7 @@ public final class MultiToolManager {
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("Settings"));
         meta.lore(List.of(
-                Component.text("Hier stellst du die Bevorzugung fuer Ziele ein."),
+                Component.text("Hier stellst du die Bevorzugung f\u00fcr Ziele ein."),
                 Component.text("Aktuell steuerbar: feindliche und friedliche Mobs, Wasser-Mobs und unbekannte Ziele.")
         ));
         item.setItemMeta(meta);
@@ -961,7 +961,7 @@ public final class MultiToolManager {
     private ItemStack createBackButton() {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Zurück"));
+        meta.displayName(Component.text("Zur\u00fcck"));
         item.setItemMeta(meta);
         return item;
     }
@@ -972,7 +972,7 @@ public final class MultiToolManager {
         meta.displayName(Component.text(toolKind.getDisplayName() + "-Upgrade"));
         meta.lore(List.of(
                 Component.text("Freie Slots: " + unlockedSlots + "/" + MAX_TOOL_SLOTS),
-                Component.text("Standardmaessig ist 1 Slot frei."),
+                Component.text("Standardm\u00e4ssig ist 1 Slot frei."),
                 Component.text("Haltbarkeit I-III schaltet pro Stufe 1 weiteren Slot frei."),
                 Component.text("Lege im Haltbarkeits-Upgrade ein Haltbarkeitsbuch ab, um Slots freizuschalten.")
         ));
@@ -997,11 +997,11 @@ public final class MultiToolManager {
         ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text("Werkzeug-Slots"));
         meta.lore(List.of(
-                Component.text("Standardmaessig ist 1 Slot frei."),
-                Component.text("Lege ein Haltbarkeitsbuch im Upgrade-Menue ab, um weitere Slots freizuschalten."),
+                Component.text("Standardm\u00e4ssig ist 1 Slot frei."),
+                Component.text("Lege ein Haltbarkeitsbuch im Upgrade-Men\u00fc ab, um weitere Slots freizuschalten."),
                 Component.text("Haltbarkeit I-III schaltet bis zu 3 weitere Slots frei."),
                 Component.text("Insgesamt lassen sich bis zu 4 Werkzeuge pro Typ speichern."),
-                Component.text("Klicke hier, um das Haltbarkeits-Upgrade zu oeffnen."),
+                Component.text("Klicke hier, um das Haltbarkeits-Upgrade zu \u00f6ffnen."),
                 Component.text("Aktuell frei: " + getUnlockedToolSlots(multitool) + "/" + MAX_TOOL_SLOTS)
         ));
         item.setItemMeta(meta);
@@ -1119,10 +1119,10 @@ public final class MultiToolManager {
         lore.add(Component.text(manualMode
                 ? "Middle-Click schaltet durch gespeicherte Werkzeuge."
                 : "Wechselt automatisch zum passenden Werkzeug."));
-        lore.add(Component.text("Ducken + F oeffnet das Menue."));
-        lore.add(Component.text("Im Settings-Menue sind Ziel-Prioritaeten einstellbar."));
-        lore.add(Component.text("Pro Werkzeugtyp koennen bis zu 4 Werkzeuge intern gespeichert werden."));
-        lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert und uebersprungen."));
+        lore.add(Component.text("Ducken + F \u00f6ffnet das Men\u00fc."));
+        lore.add(Component.text("Im Settings-Men\u00fc sind Ziel-Priorit\u00e4ten einstellbar."));
+        lore.add(Component.text("Pro Werkzeugtyp k\u00f6nnen bis zu 4 Werkzeuge intern gespeichert werden."));
+        lore.add(Component.text("Werkzeuge mit 1 Haltbarkeit werden deaktiviert und \u00fcbersprungen."));
         lore.add(Component.text("Totem: " + (hasTotem ? "gespeichert" : "nicht gespeichert")));
         lore.add(Component.text("Bindung: " + (hasBinding ? "aktiv" : "nicht aktiv")));
         return lore;
@@ -1143,7 +1143,7 @@ public final class MultiToolManager {
         meta.lore(List.of(
                 Component.text("Status: " + (isManualMode(multitool) ? "aktiv" : "inaktiv")),
                 Component.text("Aktiv: Middle-Click schaltet durch gespeicherte Tools"),
-                Component.text("Auto-Modus: Tool wird automatisch gewaehlt")
+                Component.text("Auto-Modus: Tool wird automatisch gew\u00e4hlt")
         ));
         item.setItemMeta(meta);
         return item;
