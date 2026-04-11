@@ -1,4 +1,4 @@
-﻿package de.mcbesser.multitool;
+package de.mcbesser.multitool;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

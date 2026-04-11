@@ -1,4 +1,4 @@
-﻿package de.mcbesser.multitool;
+package de.mcbesser.multitool;
 
 import io.papermc.paper.event.player.PlayerPickBlockEvent;
 import io.papermc.paper.event.player.PlayerPickEntityEvent;

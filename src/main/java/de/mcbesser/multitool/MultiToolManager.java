@@ -1,4 +1,4 @@
-﻿package de.mcbesser.multitool;
+package de.mcbesser.multitool;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
